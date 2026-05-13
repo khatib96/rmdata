@@ -3,6 +3,58 @@
 تاريخ الخطة: 2026-05-13  
 الهدف: نقل النظام من نسخة عاملة لكن متراكمة تقنياً إلى أساس V2 مستقر، قابل للتطوير، ومناسب للويب والموبايل.
 
+## 0. متابعة التقدم
+
+آخر تحديث: 2026-05-13
+
+### المرحلة 0: حماية المشروع وتثبيت الوضع الحالي
+
+- [x] إنشاء/تأكيد `.gitignore` مناسب للمشروع.
+- [x] إضافة `.gitattributes` لضبط نهايات الأسطر.
+- [x] إنشاء Git repo محلي.
+- [x] معالجة مشكلة `mobile/.git` حتى لا يظهر كمستودع داخلي/submodule.
+- [x] تنفيذ baseline commit.
+- [x] إنشاء repository خاص/مخصص على GitHub.
+- [x] رفع baseline إلى GitHub.
+- [x] إضافة `SECURITY.md`.
+- [x] تحديث `AI_MEMORY.md`.
+- [ ] إنشاء tag باسم `v1.4.1-baseline` ورفعه إلى GitHub، إن لم يكن تم بالفعل.
+- [ ] إنشاء `docs/BACKUP_LOG.md`.
+- [ ] أخذ backup من MySQL/MariaDB على VPS.
+- [ ] أخذ backup من ملفات المستندات والصور على السيرفر.
+- [ ] أخذ backup من SQLite المحلي إن كان مستخدماً في جهاز إنتاج.
+- [ ] إنشاء `docs/CURRENT_STATE_v1.4.1.md`.
+- [ ] توثيق طريقة deploy الحالية.
+- [ ] توثيق طريقة رفع تحديث جديد إلى `api.rmdata.tech/updates/win`.
+- [ ] تشغيل `npm run build:react` بعد baseline.
+- [ ] تشغيل `npm run build:electron` بعد baseline.
+
+### المرحلة 1: إصلاح TypeScript وثبات البناء
+
+- [ ] تشغيل `npm run typecheck` وحفظ الأخطاء.
+- [ ] إصلاح أخطاء runtime المحتملة.
+- [ ] توحيد أنواع المستندات.
+- [ ] إصلاح حالات `window.electronAPI` المحتملة.
+- [ ] إصلاح أنواع الأيقونات المخصصة.
+- [ ] تنظيف unused imports/locals.
+- [ ] جعل `npm run typecheck` ينجح.
+
+### المرحلة 2: ترتيب الملفات الكبيرة بدون تغيير السلوك
+
+- [ ] تقسيم `server/dev-api-server.js`.
+- [ ] تقسيم `electron/database/migrations.ts` أو تحييده تدريجياً.
+- [ ] تقسيم `src/components/Branches/AddBranchModal.tsx`.
+- [ ] تقسيم `src/components/Branches/BranchProfile.tsx`.
+- [ ] تقسيم `src/components/Employees/AddEmployeeModal.tsx`.
+
+### مبدأ الإصدارات
+
+- [x] تثبيت القرار: النسخة المثبتة الحالية لا نلمسها مباشرة.
+- [x] كل التطوير القادم يتم على الكود داخل Git.
+- [ ] بعد الاختبار فقط يتم عمل build جديد.
+- [ ] بعد build ناجح يتم إنشاء release/update جديد.
+- [ ] لا يتم رفع تحديث للمستخدمين قبل التحقق من Local وRemote.
+
 ## 1. القرار العام
 
 لا نعيد كتابة المشروع من الصفر، ولا ننتقل إلى Flutter الآن. القرار العملي هو:

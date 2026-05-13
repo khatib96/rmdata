@@ -73,9 +73,12 @@ RMDATA هو نظام إدارة داخلي لشركة الرداء الموحد.
 
 الأولوية 0:
 
-- إنشاء Git repo.
-- إنشاء remote private.
-- عمل baseline commit.
+- [x] إنشاء Git repo.
+- [x] إنشاء remote private على GitHub.
+- [x] عمل baseline commit.
+- [x] رفع baseline إلى GitHub.
+- [x] إضافة `SECURITY.md`.
+- [ ] إنشاء/رفع tag باسم `v1.4.1-baseline` إن لم يكن تم بالفعل.
 - أخذ backup من MySQL/SQLite/files.
 - توثيق الوضع الحالي في `docs/CURRENT_STATE_v1.4.1.md`.
 - إنشاء `docs/BACKUP_LOG.md`.
@@ -206,6 +209,26 @@ RMDATA هو نظام إدارة داخلي لشركة الرداء الموحد.
 الخطوة التالية:
 
 - إضافة الملف إلى Git في commit جديد أو تعديله ضمن baseline إذا لم يتم تثبيت baseline بعد.
+
+### 2026-05-13 - تأكيد مسار GitHub ومبدأ عدم لمس النسخة المثبتة
+
+ما تم:
+
+- تم رفع المشروع إلى GitHub على: `https://github.com/khatib96/rmdata.git`.
+- تمت إضافة `SECURITY.md` وظهر على GitHub.
+- تمت ملاحظة لغات المشروع على GitHub: TypeScript هو الغالب، ثم JavaScript وPHP.
+- تم الاتفاق أن النسخة المثبتة الحالية لا يتم لمسها مباشرة.
+
+القرار:
+
+- التطوير القادم يتم داخل Git على الكود.
+- لا يتم التأثير على النسخة المثبتة عند المستخدمين إلا بعد build جديد واختبار ثم رفع release/update.
+- أي مرحلة من الخطة يتم تعليمها بعلامة `[x]` عند إنجازها داخل `docs/v2-repair-and-development-roadmap.md` و/أو هذا الملف.
+
+الخطوة التالية:
+
+- التأكد من وجود tag baseline على GitHub.
+- البدء بملفات backup والتوثيق: `docs/BACKUP_LOG.md` و`docs/CURRENT_STATE_v1.4.1.md`.
 
 ## 8. قالب تسجيل جلسة جديدة
 
