@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Loading RMDATA.System...</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: transparent; /* Transparent background for frameless window */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            border-radius: 12px; /* Smooth rounded corners for the splash */
+            -webkit-app-region: drag; /* Allows the user to drag the splash screen */
+        }
+        
+        /* Container sets the exact size for the video */
+        .video-container {
+            width: 100%;
+            height: 100%;
+            background-color: transparent;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5); /* Nice shadow effect since window is frameless */
+        }
+        
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Cover the entire area without distortion */
+            border-radius: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="video-container">
+        <!-- The video file is auto-played, muted, and loops -->
+        <video autoplay loop muted playsinline>
+            <source src="./assets/rm360a.mp4" type="video/mp4">
+        </video>
+    </div>
+</body>
+</html>

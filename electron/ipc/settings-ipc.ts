@@ -1,0 +1,197 @@
+import { ipcMain } from 'electron';
+import { execFile } from 'child_process';
+import { AppDataSource, initializeDatabase } from '../../src/database/data-source';
+import { runDbQueryInternal } from '../db-query-internal';
+import { sharedState } from '../shared-state';
+import {
+  getDbConnectionConfig, setDbConnectionConfig, normalizeApiBaseUrl, executeRemoteDbQueryOnce,
+  storeRemotePassword, clearRemotePassword, clearRemoteApiSession
+} from '../remote-api-utils';
+import { getLocalSetting, getAllLocalSettings, setLocalSetting, setLocalSettings } from '../local-settings-store';
+import { validateInsertSql } from '../../src/utils/sqlInsertValidator';
+import { syncPermissionCatalog } from '../database/permission-catalog-sync';
+
+export function registerSettingsHandlers() {
+  ipcMain.handle('settings:ping', async () => 'pong');
+
+  ipcMain.handle('localSettings:get', async (_event, key: string) => getLocalSetting(key));
+  ipcMain.handle('localSettings:getAll', async () => getAllLocalSettings());
+  ipcMain.handle('localSettings:set', async (_event, key: string, value: string) => setLocalSetting(key, value));
+  ipcMain.handle('localSettings:setAll', async (_event, changes: Record<string, string>) => setLocalSettings(changes));
+
+  ipcMain.handle('settings:getDatabaseConnection', async () => {
+    const cfg = getDbConnectionConfig();
+    const hasSession = !!sharedState.remoteApiSession?.token;
+    const hasSavedToken = !!cfg.apiToken;
+    return {
+      ...cfg,
+      authenticated: cfg.mode === 'remote' ? (hasSession || hasSavedToken) : true,
+    };
+  });
+
+  ipcMain.handle('settings:setDatabaseConnection', async (_event, config: { mode: 'local' | 'remote'; apiBaseUrl?: string; apiUsername?: string; apiPassword?: string; apiToken?: string }) => {
+    try {
+      if (config.mode === 'local') {
+        clearRemoteApiSession();
+        clearRemotePassword();
+        setDbConnectionConfig({ mode: 'local' });
+        return { success: true, authenticated: true };
+      }
+
+      const base = normalizeApiBaseUrl(config.apiBaseUrl);
+      const username = String(config.apiUsername || '').trim();
+      const password = String(config.apiPassword || '');
+      if (!base || !username || !password) {
+        return { success: false, authenticated: false, error: 'REMOTE_NOT_CONFIGURED' };
+      }
+
+      const loginRes = await fetch(`${base}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+        signal: AbortSignal.timeout(15000),
+      });
+      const loginJson = await loginRes.json() as { success?: boolean; token?: string; user?: { id?: number }; error?: string };
+      if (!loginRes.ok || !loginJson.success || !loginJson.token) {
+        return { success: false, authenticated: false, error: loginJson.error || 'INVALID_CREDENTIALS' };
+      }
+
+      setDbConnectionConfig({
+        mode: 'remote',
+        apiBaseUrl: base,
+        apiUsername: username,
+        apiToken: loginJson.token,
+      });
+      storeRemotePassword(password);
+      sharedState.remoteApiSession = { token: loginJson.token, apiBaseUrl: base, userId: loginJson.user?.id };
+      return { success: true, authenticated: true };
+    } catch (err) {
+      return { success: false, authenticated: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  });
+
+  ipcMain.handle('settings:testApiConnection', async (_event, baseUrl: string, username?: string, password?: string) => {
+    try {
+      let url = String(baseUrl || '').trim().replace(/\/+$/, '');
+      if (!url.startsWith('http')) url = `https://${url}`;
+      url = url.replace(/\/api$/i, '');
+      const loginRes = await fetch(`${url}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username || '', password: password || '' }),
+        signal: AbortSignal.timeout(10000),
+      });
+      const json = await loginRes.json() as { success: boolean; token?: string; error?: string };
+      if (!loginRes.ok || !json.success) return { success: false, ok: false, error: json.error || `HTTP ${loginRes.status}` };
+      return { success: true, ok: true, database: true, token: json.token };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  });
+
+  ipcMain.handle('device:ping', async (_event, token: string, gpsCoords: string | null, locationCity: string | null | undefined) => {
+    try {
+      if (!token) return { forceLogout: false as const };
+      const check = await runDbQueryInternal('SELECT id FROM connected_devices WHERE token = ? LIMIT 1', [token]);
+      if (!check.success) return { forceLogout: false as const, error: check.error || 'PING_FAILED' };
+      if (!check.data?.length) return { forceLogout: true as const };
+      const updateParams: unknown[] = [];
+      let sql = "UPDATE connected_devices SET lastActive = datetime('now')";
+      if (gpsCoords) { sql += ', gpsCoordinates = ?'; updateParams.push(gpsCoords); }
+      if (locationCity !== undefined) { sql += ', locationCity = ?'; updateParams.push(locationCity); }
+      sql += ' WHERE token = ?';
+      updateParams.push(token);
+      const upd = await runDbQueryInternal(sql, updateParams);
+      if (!upd.success) return { forceLogout: false as const, error: upd.error || 'PING_UPDATE_FAILED' };
+      return { forceLogout: false as const };
+    } catch (err) {
+      return { forceLogout: false as const, error: String(err) };
+    }
+  });
+
+  ipcMain.handle('device:logout', async (_event, token: string) => {
+    try {
+      if (!token) return { success: true };
+      await runDbQueryInternal('DELETE FROM connected_devices WHERE token = ?', [token]);
+      if (sharedState.currentSessionToken === token) sharedState.currentSessionToken = null;
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  const POWERSHELL_GEO_SCRIPT = `
+Add-Type -AssemblyName System.Device
+$w = New-Object System.Device.Location.GeoCoordinateWatcher([System.Device.Location.GeoPositionAccuracy]::Default)
+$w.Start()
+$timeout = 15
+$elapsed = 0
+while ($w.Status -ne 'Ready' -and $elapsed -lt $timeout) { Start-Sleep -Milliseconds 500; $elapsed += 0.5 }
+if ($w.Status -eq 'Ready' -and $w.Position.Location.Latitude -ne [double]::NaN) {
+  Write-Output "\$($w.Position.Location.Latitude)|\$($w.Position.Location.Longitude)"
+} else { Write-Error "LOCATION_UNAVAILABLE: status=$($w.Status)" }
+$w.Stop()
+`;
+
+  ipcMain.handle('get-windows-location', async () => {
+    return new Promise((resolve) => {
+      const ps = execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', POWERSHELL_GEO_SCRIPT], { timeout: 25000 }, (err, stdout, stderr) => {
+        if (err) return resolve({ success: false, error: stderr?.trim() || err.message });
+        const parts = (stdout || '').trim().split('|');
+        if (parts.length !== 2) return resolve({ success: false, error: 'INVALID_OUTPUT' });
+        const lat = parseFloat(parts[0]), lng = parseFloat(parts[1]);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return resolve({ success: false, error: 'INVALID_COORDS' });
+        resolve({ success: true, lat, lng });
+      });
+      ps.stdin?.end();
+    });
+  });
+
+  /** يضمن وجود كل صفوف الكتالوج في قاعدة البيانات النشطة (محلي أو بعيد) قبل عرض شاشة الصلاحيات */
+  ipcMain.handle('permissions:syncCatalog', async () => {
+    try {
+      const conf = getDbConnectionConfig();
+      if (conf.mode === 'remote') {
+        await syncPermissionCatalog(async (sql, params) => {
+          const r = await executeRemoteDbQueryOnce(sql, params ?? []);
+          if (!r.success) throw new Error(r.error || 'REMOTE_QUERY_FAILED');
+          return r.data;
+        });
+        return { success: true as const };
+      }
+      if (!AppDataSource.isInitialized) await initializeDatabase();
+      const qr = AppDataSource.createQueryRunner();
+      try {
+        await syncPermissionCatalog((sql, p) => qr.query(sql, p));
+      } finally {
+        await qr.release();
+      }
+      return { success: true as const };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.warn('permissions:syncCatalog failed:', msg);
+      return { success: false as const, error: msg };
+    }
+  });
+
+  ipcMain.handle('db:query', async (_event, query: string, params?: unknown[], internalToken?: string) => {
+    try {
+      validateInsertSql(query, params);
+      const conf = getDbConnectionConfig();
+      if (conf.mode === 'remote') {
+        const res = await executeRemoteDbQueryOnce(query, params);
+        if (!res.success) return { success: false, error: res.error || 'REMOTE_QUERY_FAILED' };
+        return { success: true, data: res.data };
+      }
+      if (!AppDataSource.isInitialized) await initializeDatabase();
+      const qr = AppDataSource.createQueryRunner();
+      const rows = await qr.query(query, params);
+      await qr.release();
+      return { success: true, data: rows };
+    } catch (e) {
+      console.warn('DB Query main error:', e);
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  });
+  console.log("Settings IPC loaded");
+}

@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+yarn.lock
+api-gateway-php/vendor/
+mobile/node_modules/
+
+# Build outputs
+dist/
+dist-electron/
+build/
+*.tsbuildinfo
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+database/*.db
+!database/.gitkeep
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+.cursor/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Electron
+out/
+release/
+release2/
+
+# Temporary workspace files
+.tmp/
+.tmp-logs/
+.tmp-scripts/

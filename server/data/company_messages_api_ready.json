@@ -1,0 +1,2293 @@
+{
+  "meta": {
+    "catalog_id": "company-spiritual-messages-ar",
+    "title_ar": "أذكار وأدعية وعبارات تحفيزية لبرنامج الشركة",
+    "title_en": "Company Spiritual, Supplication, and Motivation Messages",
+    "version": "1.0.0",
+    "status": "production_ready",
+    "language": "ar",
+    "timezone": "Asia/Qatar",
+    "audience": "employees",
+    "default_locale": "ar-QA",
+    "total_categories": 7,
+    "total_messages": 100,
+    "created_for": "company_program",
+    "notes_ar": [
+      "أذكار الصباح تظهر من 07:00 حتى 11:00.",
+      "أذكار المساء تظهر من 16:00 حتى 18:00.",
+      "أدعية رمضان تظهر فقط إذا كان الشهر الهجري هو رمضان.",
+      "التحفيز يظهر بشكل عشوائي في الأوقات الأخرى.",
+      "العام يظهر في أي وقت كفاصل عشوائي.",
+      "رسائل الجمعة مخصصة ليوم الجمعة ويمكن حقنها طوال اليوم."
+    ]
+  },
+  "selection_engine": {
+    "resolver_strategy": "highest_priority_active_category_then_weighted_random",
+    "category_priority_order": [
+      "ramadan",
+      "friday",
+      "morning",
+      "evening",
+      "motivation",
+      "general",
+      "quick"
+    ],
+    "fallback_categories": [
+      "motivation",
+      "general",
+      "quick"
+    ],
+    "deduplication": {
+      "prevent_same_message_consecutively": true,
+      "prevent_same_category_consecutively": false,
+      "recommended_cooldown_minutes_for_same_message": 180
+    },
+    "randomization": {
+      "strategy": "weighted_random",
+      "default_weight": 1
+    }
+  },
+  "api_contract": {
+    "resource_name": "messages",
+    "base_path": "/api/v1/messages",
+    "supported_filters": [
+      "category",
+      "active_at",
+      "weekday",
+      "hijri_month",
+      "channel",
+      "enabled",
+      "limit",
+      "random"
+    ],
+    "recommended_endpoints": [
+      {
+        "method": "GET",
+        "path": "/api/v1/messages",
+        "purpose_ar": "إرجاع الرسائل مع دعم الفلترة حسب التصنيف أو الحالة."
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/messages/resolve?active_at=2026-03-18T08:30:00+03:00",
+        "purpose_ar": "اختيار أفضل رسالة مناسبة حسب الوقت والسياق."
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/messages/random?category=general&limit=5",
+        "purpose_ar": "إرجاع رسائل عشوائية من تصنيف محدد."
+      }
+    ],
+    "response_core_fields": [
+      "id",
+      "code",
+      "category",
+      "text_ar",
+      "priority",
+      "enabled",
+      "rule_ids"
+    ]
+  },
+  "rules": [
+    {
+      "id": "rule_morning_time",
+      "type": "time_window",
+      "description_ar": "تفعيل الرسائل الصباحية يومياً بين 07:00 و 11:00 حسب توقيت النظام.",
+      "config": {
+        "timezone": "Asia/Qatar",
+        "start_time": "07:00",
+        "end_time": "11:00",
+        "inclusive_start": true,
+        "exclusive_end": false
+      }
+    },
+    {
+      "id": "rule_evening_time",
+      "type": "time_window",
+      "description_ar": "تفعيل الرسائل المسائية يومياً بين 16:00 و 18:00 حسب توقيت النظام.",
+      "config": {
+        "timezone": "Asia/Qatar",
+        "start_time": "16:00",
+        "end_time": "18:00",
+        "inclusive_start": true,
+        "exclusive_end": false
+      }
+    },
+    {
+      "id": "rule_ramadan_hijri_month",
+      "type": "hijri_calendar_month",
+      "description_ar": "تفعيل الرسائل الرمضانية فقط عند توافق التاريخ الهجري مع شهر رمضان.",
+      "config": {
+        "calendar": "hijri",
+        "month_number": 9,
+        "month_name_ar": "رمضان",
+        "month_name_en": "Ramadan"
+      }
+    },
+    {
+      "id": "rule_friday_anytime",
+      "type": "weekday",
+      "description_ar": "تفعيل رسائل الجمعة طوال يوم الجمعة.",
+      "config": {
+        "weekday_iso": 5,
+        "weekday_name_ar": "الجمعة",
+        "weekday_name_en": "Friday",
+        "active_all_day": true
+      }
+    },
+    {
+      "id": "rule_other_times",
+      "type": "composite_fallback",
+      "description_ar": "تستخدم العبارات التحفيزية في الأوقات الأخرى خارج الصباح والمساء ورمضان، ويمكن جعلها fallback بعد الرسائل السياقية الأعلى أولوية.",
+      "config": {
+        "exclude_rule_ids": [
+          "rule_morning_time",
+          "rule_evening_time",
+          "rule_ramadan_hijri_month"
+        ],
+        "selection_policy": "weighted_random"
+      }
+    },
+    {
+      "id": "rule_anytime",
+      "type": "anytime",
+      "description_ar": "رسائل عامة متاحة في أي وقت كفواصل عشوائية.",
+      "config": {
+        "selection_policy": "weighted_random"
+      }
+    },
+    {
+      "id": "rule_anytime_short",
+      "type": "anytime",
+      "description_ar": "إشعارات قصيرة متاحة في أي وقت لاستخدامها كتذكيرات سريعة.",
+      "config": {
+        "selection_policy": "weighted_random",
+        "max_length_hint": "short"
+      }
+    }
+  ],
+  "categories": [
+    {
+      "key": "morning",
+      "label_ar": "أذكار الصباح",
+      "label_en": "Morning Azkar",
+      "priority": 90,
+      "default_channels": [
+        "dashboard",
+        "widget",
+        "in_app_notification"
+      ],
+      "tone": "spiritual",
+      "selection_mode": "scheduled_random",
+      "rule_ids": [
+        "rule_morning_time"
+      ],
+      "messages_count": 16
+    },
+    {
+      "key": "evening",
+      "label_ar": "أذكار المساء",
+      "label_en": "Evening Azkar",
+      "priority": 90,
+      "default_channels": [
+        "dashboard",
+        "widget",
+        "in_app_notification"
+      ],
+      "tone": "spiritual",
+      "selection_mode": "scheduled_random",
+      "rule_ids": [
+        "rule_evening_time"
+      ],
+      "messages_count": 11
+    },
+    {
+      "key": "ramadan",
+      "label_ar": "أدعية رمضان",
+      "label_en": "Ramadan Supplications",
+      "priority": 100,
+      "default_channels": [
+        "dashboard",
+        "widget",
+        "campaign_banner",
+        "in_app_notification"
+      ],
+      "tone": "seasonal_spiritual",
+      "selection_mode": "contextual_random",
+      "rule_ids": [
+        "rule_ramadan_hijri_month"
+      ],
+      "messages_count": 11
+    },
+    {
+      "key": "motivation",
+      "label_ar": "عبارات تحفيزية",
+      "label_en": "Motivational Messages",
+      "priority": 70,
+      "default_channels": [
+        "dashboard",
+        "widget",
+        "in_app_notification"
+      ],
+      "tone": "motivational",
+      "selection_mode": "fallback_random",
+      "rule_ids": [
+        "rule_other_times"
+      ],
+      "messages_count": 24
+    },
+    {
+      "key": "general",
+      "label_ar": "أذكار وأدعية عامة",
+      "label_en": "General Supplications",
+      "priority": 60,
+      "default_channels": [
+        "dashboard",
+        "widget",
+        "in_app_notification"
+      ],
+      "tone": "spiritual",
+      "selection_mode": "filler_random",
+      "rule_ids": [
+        "rule_anytime"
+      ],
+      "messages_count": 23
+    },
+    {
+      "key": "quick",
+      "label_ar": "إشعارات قصيرة",
+      "label_en": "Quick Notifications",
+      "priority": 50,
+      "default_channels": [
+        "toast",
+        "push_notification",
+        "widget"
+      ],
+      "tone": "short_spiritual",
+      "selection_mode": "quick_random",
+      "rule_ids": [
+        "rule_anytime_short"
+      ],
+      "messages_count": 10
+    },
+    {
+      "key": "friday",
+      "label_ar": "تنبيهات يوم الجمعة",
+      "label_en": "Friday Messages",
+      "priority": 95,
+      "default_channels": [
+        "dashboard",
+        "widget",
+        "campaign_banner",
+        "in_app_notification"
+      ],
+      "tone": "weekly_spiritual",
+      "selection_mode": "contextual_random",
+      "rule_ids": [
+        "rule_friday_anytime"
+      ],
+      "messages_count": 5
+    }
+  ],
+  "messages": [
+    {
+      "id": "MSG-001",
+      "code": "MOR-001",
+      "sequence": 1,
+      "category": "morning",
+      "text_ar": "أصبحنا وأصبح الملك لله، والحمد لله، لا إله إلا الله وحده لا شريك له.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 90,
+      "rule_ids": [
+        "rule_morning_time"
+      ],
+      "tags": [
+        "ذكر",
+        "صباح",
+        "روحاني",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-002",
+      "code": "MOR-002",
+      "sequence": 2,
+      "category": "morning",
+      "text_ar": "اللهم بك أصبحنا، وبك أمسينا، وبك نحيا، وبك نموت، وإليك النشور.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 90,
+      "rule_ids": [
+        "rule_morning_time"
+      ],
+      "tags": [
+        "ذكر",
+        "صباح",
+        "روحاني",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-003",
+      "code": "MOR-003",
+      "sequence": 3,
+      "category": "morning",
+      "text_ar": "يا حي يا قيوم برحمتك أستغيث أصلح لي شأني كله ولا تكلني إلى نفسي طرفة عين.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 90,
+      "rule_ids": [
+        "rule_morning_time"
+      ],
+      "tags": [
+        "ذكر",
+        "صباح",
+        "روحاني",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-004",
+      "code": "MOR-004",
+      "sequence": 4,
+      "category": "morning",
+      "text_ar": "اللهم إني أسألك علماً نافعاً، ورزقاً طيباً، وعملاً متقبلاً.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 90,
+      "rule_ids": [
+        "rule_morning_time"
+      ],
+      "tags": [
+        "ذكر",
+        "صباح",
+        "روحاني",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-005",
+      "code": "MOR-005",
+      "sequence": 5,
+      "category": "morning",
+      "text_ar": "رضيت بالله رباً، وبالإسلام ديناً، وبمحمد صلى الله عليه وسلم نبياً.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 90,
+      "rule_ids": [
+        "rule_morning_time"
+      ],
+      "tags": [
+        "ذكر",
+        "صباح",
+        "روحاني",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-006",
+      "code": "MOR-006",
+      "sequence": 6,
+      "category": "morning",
+      "text_ar": "أصبحنا على فطرة الإسلام وعلى كلمة الإخلاص وعلى دين نبينا محمد.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 90,
+      "rule_ids": [
+        "rule_morning_time"
+      ],
+      "tags": [
+        "ذكر",
+        "صباح",
+        "روحاني",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-007",
+      "code": "MOR-007",
+      "sequence": 7,
+      "category": "morning",
+      "text_ar": "بسم الله الذي لا يضر مع اسمه شيء في الأرض ولا في السماء وهو السميع العليم.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 90,
+      "rule_ids": [
+        "rule_morning_time"
+      ],
+      "tags": [
+        "ذكر",
+        "صباح",
+        "روحاني",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-008",
+      "code": "MOR-008",
+      "sequence": 8,
+      "category": "morning",
+      "text_ar": "اللهم ما أصبح بي من نعمة أو بأحد من خلقك فمنك وحدك لا شريك لك.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 90,
+      "rule_ids": [
+        "rule_morning_time"
+      ],
+      "tags": [
+        "ذكر",
+        "صباح",
+        "روحاني",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-009",
+      "code": "MOR-009",
+      "sequence": 9,
+      "category": "morning",
+      "text_ar": "سبحان الله وبحمده: عدد خلقه، ورضا نفسه، وزنة عرشه، ومداد كلماته.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 90,
+      "rule_ids": [
+        "rule_morning_time"
+      ],
+      "tags": [
+        "ذكر",
+        "صباح",
+        "روحاني",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-010",
+      "code": "MOR-010",
+      "sequence": 10,
+      "category": "morning",
+      "text_ar": "اللهم إني أسألك العفو والعافية في دنياي وديني وأهلي ومالي.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 90,
+      "rule_ids": [
+        "rule_morning_time"
+      ],
+      "tags": [
+        "ذكر",
+        "صباح",
+        "روحاني",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-011",
+      "code": "MOR-011",
+      "sequence": 11,
+      "category": "morning",
+      "text_ar": "اللهم عالم الغيب والشهادة فاطر السماوات والأرض، رب كل شيء ومليكه.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 90,
+      "rule_ids": [
+        "rule_morning_time"
+      ],
+      "tags": [
+        "ذكر",
+        "صباح",
+        "روحاني",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-012",
+      "code": "MOR-012",
+      "sequence": 12,
+      "category": "morning",
+      "text_ar": "أصبحنا وأصبح الملك لله والحمد لله، لا إله إلا الله وحده لا شريك له.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 90,
+      "rule_ids": [
+        "rule_morning_time"
+      ],
+      "tags": [
+        "ذكر",
+        "صباح",
+        "روحاني",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-013",
+      "code": "MOR-013",
+      "sequence": 13,
+      "category": "morning",
+      "text_ar": "يا رب اجعل هذا الصباح فاتحة خير على شركتنا وفريق عملنا.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 90,
+      "rule_ids": [
+        "rule_morning_time"
+      ],
+      "tags": [
+        "ذكر",
+        "صباح",
+        "روحاني",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-014",
+      "code": "MOR-014",
+      "sequence": 14,
+      "category": "morning",
+      "text_ar": "اللهم إني أسألك خير هذا اليوم فتحه ونصره ونوره وبركته وهداه.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 90,
+      "rule_ids": [
+        "rule_morning_time"
+      ],
+      "tags": [
+        "ذكر",
+        "صباح",
+        "روحاني",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-015",
+      "code": "MOR-015",
+      "sequence": 15,
+      "category": "morning",
+      "text_ar": "أستغفر الله العظيم الذي لا إله إلا هو الحي القيوم وأتوب إليه.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 90,
+      "rule_ids": [
+        "rule_morning_time"
+      ],
+      "tags": [
+        "ذكر",
+        "صباح",
+        "روحاني",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-016",
+      "code": "MOR-016",
+      "sequence": 16,
+      "category": "morning",
+      "text_ar": "اللهم إني أصبحت منك في نعمة وعافية وستر.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 90,
+      "rule_ids": [
+        "rule_morning_time"
+      ],
+      "tags": [
+        "ذكر",
+        "صباح",
+        "روحاني",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-017",
+      "code": "EVE-001",
+      "sequence": 17,
+      "category": "evening",
+      "text_ar": "أمسينـا وأمسى الملك لله، والحمد لله، لا إله إلا الله وحده لا شريك له.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 90,
+      "rule_ids": [
+        "rule_evening_time"
+      ],
+      "tags": [
+        "ذكر",
+        "مساء",
+        "روحاني",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-018",
+      "code": "EVE-002",
+      "sequence": 18,
+      "category": "evening",
+      "text_ar": "اللهم بك أمسينا، وبك أصبحنا، وبك نحيا، وبك نموت، وإليك المصير.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 90,
+      "rule_ids": [
+        "rule_evening_time"
+      ],
+      "tags": [
+        "ذكر",
+        "مساء",
+        "روحاني",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-019",
+      "code": "EVE-003",
+      "sequence": 19,
+      "category": "evening",
+      "text_ar": "أعوذ بكلمات الله التامات من شر ما خلق.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 90,
+      "rule_ids": [
+        "rule_evening_time"
+      ],
+      "tags": [
+        "ذكر",
+        "مساء",
+        "روحاني",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-020",
+      "code": "EVE-004",
+      "sequence": 20,
+      "category": "evening",
+      "text_ar": "اللهم أنت ربي لا إله إلا أنت، خلقتني وأنا عبدك، وأنا على عهدك ووعدك ما استطعت.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 90,
+      "rule_ids": [
+        "rule_evening_time"
+      ],
+      "tags": [
+        "ذكر",
+        "مساء",
+        "روحاني",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-021",
+      "code": "EVE-005",
+      "sequence": 21,
+      "category": "evening",
+      "text_ar": "أمسينـا على فطرة الإسلام وعلى كلمة الإخلاص وعلى دين نبينا محمد.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 90,
+      "rule_ids": [
+        "rule_evening_time"
+      ],
+      "tags": [
+        "ذكر",
+        "مساء",
+        "روحاني",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-022",
+      "code": "EVE-006",
+      "sequence": 22,
+      "category": "evening",
+      "text_ar": "حسبي الله لا إله إلا هو عليه توكلت وهو رب العرش العظيم.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 90,
+      "rule_ids": [
+        "rule_evening_time"
+      ],
+      "tags": [
+        "ذكر",
+        "مساء",
+        "روحاني",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-023",
+      "code": "EVE-007",
+      "sequence": 23,
+      "category": "evening",
+      "text_ar": "اللهم إني أعوذ بك من الهم والحزن، والعجز والكسل، والجبن والبخل.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 90,
+      "rule_ids": [
+        "rule_evening_time"
+      ],
+      "tags": [
+        "ذكر",
+        "مساء",
+        "روحاني",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-024",
+      "code": "EVE-008",
+      "sequence": 24,
+      "category": "evening",
+      "text_ar": "يا رب في هذا المساء، ارزقنا راحة البال وطمأنينة القلب بعد عناء العمل.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 90,
+      "rule_ids": [
+        "rule_evening_time"
+      ],
+      "tags": [
+        "ذكر",
+        "مساء",
+        "روحاني",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-025",
+      "code": "EVE-009",
+      "sequence": 25,
+      "category": "evening",
+      "text_ar": "اللهم عافني في بدني، اللهم عافني في سمعي، اللهم عافني في بصري.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 90,
+      "rule_ids": [
+        "rule_evening_time"
+      ],
+      "tags": [
+        "ذكر",
+        "مساء",
+        "روحاني",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-026",
+      "code": "EVE-010",
+      "sequence": 26,
+      "category": "evening",
+      "text_ar": "اللهم إني أسألك العافية في الدنيا والآخرة.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 90,
+      "rule_ids": [
+        "rule_evening_time"
+      ],
+      "tags": [
+        "ذكر",
+        "مساء",
+        "روحاني",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-027",
+      "code": "EVE-011",
+      "sequence": 27,
+      "category": "evening",
+      "text_ar": "اللهم ما أمسى بي من نعمة فمنك وحدك.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 90,
+      "rule_ids": [
+        "rule_evening_time"
+      ],
+      "tags": [
+        "ذكر",
+        "مساء",
+        "روحاني",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-028",
+      "code": "MOT-001",
+      "sequence": 28,
+      "category": "motivation",
+      "text_ar": "إن الله يحب إذا عمل أحدكم عملاً أن يتقنه.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 70,
+      "rule_ids": [
+        "rule_other_times"
+      ],
+      "tags": [
+        "تحفيز",
+        "عمل",
+        "نجاح",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-029",
+      "code": "MOT-002",
+      "sequence": 29,
+      "category": "motivation",
+      "text_ar": "النجاح هو محصلة اجتهادات صغيرة نكررها كل يوم.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 70,
+      "rule_ids": [
+        "rule_other_times"
+      ],
+      "tags": [
+        "تحفيز",
+        "عمل",
+        "نجاح",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-030",
+      "code": "MOT-003",
+      "sequence": 30,
+      "category": "motivation",
+      "text_ar": "الرزق يحتاج إلى سعي، والتوفيق من عند الله وحده.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 70,
+      "rule_ids": [
+        "rule_other_times"
+      ],
+      "tags": [
+        "تحفيز",
+        "عمل",
+        "نجاح",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-031",
+      "code": "MOT-004",
+      "sequence": 31,
+      "category": "motivation",
+      "text_ar": "بداية النجاح هي الانضباط في العمل والصدق في المعاملة.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 70,
+      "rule_ids": [
+        "rule_other_times"
+      ],
+      "tags": [
+        "تحفيز",
+        "عمل",
+        "نجاح",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-032",
+      "code": "MOT-005",
+      "sequence": 32,
+      "category": "motivation",
+      "text_ar": "كل جهد تبذله اليوم هو استثمار حقيقي لمستقبلك غداً.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 70,
+      "rule_ids": [
+        "rule_other_times"
+      ],
+      "tags": [
+        "تحفيز",
+        "عمل",
+        "نجاح",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-033",
+      "code": "MOT-006",
+      "sequence": 33,
+      "category": "motivation",
+      "text_ar": "لا تؤجل عمل اليوم إلى الغد، فالبركة في إنجاز الأمور في وقتها.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 70,
+      "rule_ids": [
+        "rule_other_times"
+      ],
+      "tags": [
+        "تحفيز",
+        "عمل",
+        "نجاح",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-034",
+      "code": "MOT-007",
+      "sequence": 34,
+      "category": "motivation",
+      "text_ar": "التركيز هو مفتاح الإنجاز السريع والدقيق.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 70,
+      "rule_ids": [
+        "rule_other_times"
+      ],
+      "tags": [
+        "تحفيز",
+        "عمل",
+        "نجاح",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-035",
+      "code": "MOT-008",
+      "sequence": 35,
+      "category": "motivation",
+      "text_ar": "ليس المهم أن تسير سريعاً، المهم أن تسير في الاتجاه الصحيح.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 70,
+      "rule_ids": [
+        "rule_other_times"
+      ],
+      "tags": [
+        "تحفيز",
+        "عمل",
+        "نجاح",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-036",
+      "code": "MOT-009",
+      "sequence": 36,
+      "category": "motivation",
+      "text_ar": "الأمانة في العمل هي سر البركة في مالك وحياتك.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 70,
+      "rule_ids": [
+        "rule_other_times"
+      ],
+      "tags": [
+        "تحفيز",
+        "عمل",
+        "نجاح",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-037",
+      "code": "MOT-010",
+      "sequence": 37,
+      "category": "motivation",
+      "text_ar": "الابتسامة في وجه زملائك تخلق بيئة عمل مريحة ومبدعة.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 70,
+      "rule_ids": [
+        "rule_other_times"
+      ],
+      "tags": [
+        "تحفيز",
+        "عمل",
+        "نجاح",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-038",
+      "code": "MOT-011",
+      "sequence": 38,
+      "category": "motivation",
+      "text_ar": "تنظيم وقتك هو أول خطوة نحو الريادة والتميز.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 70,
+      "rule_ids": [
+        "rule_other_times"
+      ],
+      "tags": [
+        "تحفيز",
+        "عمل",
+        "نجاح",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-039",
+      "code": "MOT-012",
+      "sequence": 39,
+      "category": "motivation",
+      "text_ar": "كن جزءاً من الحل، ولا تكن جزءاً من المشكلة.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 70,
+      "rule_ids": [
+        "rule_other_times"
+      ],
+      "tags": [
+        "تحفيز",
+        "عمل",
+        "نجاح",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-040",
+      "code": "MOT-013",
+      "sequence": 40,
+      "category": "motivation",
+      "text_ar": "الجودة ليست مجرد معيار، بل هي ثقافة عمل نتبناها.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 70,
+      "rule_ids": [
+        "rule_other_times"
+      ],
+      "tags": [
+        "تحفيز",
+        "عمل",
+        "نجاح",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-041",
+      "code": "MOT-014",
+      "sequence": 41,
+      "category": "motivation",
+      "text_ar": "الإخلاص في العمل يورث راحة الضمير وتيسير الأمور.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 70,
+      "rule_ids": [
+        "rule_other_times"
+      ],
+      "tags": [
+        "تحفيز",
+        "عمل",
+        "نجاح",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-042",
+      "code": "MOT-015",
+      "sequence": 42,
+      "category": "motivation",
+      "text_ar": "فريق العمل الواحد هو الذي يصنع الفارق الحقيقي.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 70,
+      "rule_ids": [
+        "rule_other_times"
+      ],
+      "tags": [
+        "تحفيز",
+        "عمل",
+        "نجاح",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-043",
+      "code": "MOT-016",
+      "sequence": 43,
+      "category": "motivation",
+      "text_ar": "تذكر أن عملك هذا هو مساهمة في عمارة الأرض.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 70,
+      "rule_ids": [
+        "rule_other_times"
+      ],
+      "tags": [
+        "تحفيز",
+        "عمل",
+        "نجاح",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-044",
+      "code": "MOT-017",
+      "sequence": 44,
+      "category": "motivation",
+      "text_ar": "التحديات هي فرص متنكرة، فاجعل منها سلماً للنجاح.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 70,
+      "rule_ids": [
+        "rule_other_times"
+      ],
+      "tags": [
+        "تحفيز",
+        "عمل",
+        "نجاح",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-045",
+      "code": "MOT-018",
+      "sequence": 45,
+      "category": "motivation",
+      "text_ar": "التعلم المستمر هو وقود الإبداع في وظيفتك.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 70,
+      "rule_ids": [
+        "rule_other_times"
+      ],
+      "tags": [
+        "تحفيز",
+        "عمل",
+        "نجاح",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-046",
+      "code": "MOT-019",
+      "sequence": 46,
+      "category": "motivation",
+      "text_ar": "كن فخوراً بما تقدمه، واطمح دائماً للأفضل.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 70,
+      "rule_ids": [
+        "rule_other_times"
+      ],
+      "tags": [
+        "تحفيز",
+        "عمل",
+        "نجاح",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-047",
+      "code": "MOT-020",
+      "sequence": 47,
+      "category": "motivation",
+      "text_ar": "الإبداع هو أن تفعل الأشياء المعتادة بطريقة استثنائية.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 70,
+      "rule_ids": [
+        "rule_other_times"
+      ],
+      "tags": [
+        "تحفيز",
+        "عمل",
+        "نجاح",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-048",
+      "code": "MOT-021",
+      "sequence": 48,
+      "category": "motivation",
+      "text_ar": "النجاح يبدأ من حيث تنتهي منطقة الراحة الخاصة بك.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 70,
+      "rule_ids": [
+        "rule_other_times"
+      ],
+      "tags": [
+        "تحفيز",
+        "عمل",
+        "نجاح",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-049",
+      "code": "MOT-022",
+      "sequence": 49,
+      "category": "motivation",
+      "text_ar": "كن الشخص الذي يجعله الجميع يشعرون بالترحيب.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 70,
+      "rule_ids": [
+        "rule_other_times"
+      ],
+      "tags": [
+        "تحفيز",
+        "عمل",
+        "نجاح",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-050",
+      "code": "MOT-023",
+      "sequence": 50,
+      "category": "motivation",
+      "text_ar": "ثقتك بنفسك هي أول خطوات النجاح.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 70,
+      "rule_ids": [
+        "rule_other_times"
+      ],
+      "tags": [
+        "تحفيز",
+        "عمل",
+        "نجاح",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-051",
+      "code": "MOT-024",
+      "sequence": 51,
+      "category": "motivation",
+      "text_ar": "التميز لا يأتي من فراغ، بل من تكرار الإتقان.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 70,
+      "rule_ids": [
+        "rule_other_times"
+      ],
+      "tags": [
+        "تحفيز",
+        "عمل",
+        "نجاح",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-052",
+      "code": "RAM-001",
+      "sequence": 52,
+      "category": "ramadan",
+      "text_ar": "اللهم بارك لنا في رمضان وأعنا فيه على الصيام والقيام وإتقان العمل.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 100,
+      "rule_ids": [
+        "rule_ramadan_hijri_month"
+      ],
+      "tags": [
+        "رمضان",
+        "دعاء",
+        "موسمي",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-053",
+      "code": "RAM-002",
+      "sequence": 53,
+      "category": "ramadan",
+      "text_ar": "اللهم اجعلنا ممن يصوم رمضان إيماناً واحتساباً.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 100,
+      "rule_ids": [
+        "rule_ramadan_hijri_month"
+      ],
+      "tags": [
+        "رمضان",
+        "دعاء",
+        "موسمي",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-054",
+      "code": "RAM-003",
+      "sequence": 54,
+      "category": "ramadan",
+      "text_ar": "ذهب الظمأ وابتلت العروق وثبت الأجر إن شاء الله.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 100,
+      "rule_ids": [
+        "rule_ramadan_hijri_month"
+      ],
+      "tags": [
+        "رمضان",
+        "دعاء",
+        "موسمي",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-055",
+      "code": "RAM-004",
+      "sequence": 55,
+      "category": "ramadan",
+      "text_ar": "اللهم إنك عفو تحب العفو فاعف عني.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 100,
+      "rule_ids": [
+        "rule_ramadan_hijri_month"
+      ],
+      "tags": [
+        "رمضان",
+        "دعاء",
+        "موسمي",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-056",
+      "code": "RAM-005",
+      "sequence": 56,
+      "category": "ramadan",
+      "text_ar": "يا حي يا قيوم، اجعل هذا الشهر مباركاً على شركتنا وعمالنا.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 100,
+      "rule_ids": [
+        "rule_ramadan_hijri_month"
+      ],
+      "tags": [
+        "رمضان",
+        "دعاء",
+        "موسمي",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-057",
+      "code": "RAM-006",
+      "sequence": 57,
+      "category": "ramadan",
+      "text_ar": "اللهم تقبل منا صالح الأعمال وضاعف لنا الأجور في هذا الشهر.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 100,
+      "rule_ids": [
+        "rule_ramadan_hijri_month"
+      ],
+      "tags": [
+        "رمضان",
+        "دعاء",
+        "موسمي",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-058",
+      "code": "RAM-007",
+      "sequence": 58,
+      "category": "ramadan",
+      "text_ar": "رمضان فرصة لتطهير النفس وتجديد العزم في العمل.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 100,
+      "rule_ids": [
+        "rule_ramadan_hijri_month"
+      ],
+      "tags": [
+        "رمضان",
+        "دعاء",
+        "موسمي",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-059",
+      "code": "RAM-008",
+      "sequence": 59,
+      "category": "ramadan",
+      "text_ar": "اللهم اجعلنا من عتقائك من النار في هذا الشهر الكريم.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 100,
+      "rule_ids": [
+        "rule_ramadan_hijri_month"
+      ],
+      "tags": [
+        "رمضان",
+        "دعاء",
+        "موسمي",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-060",
+      "code": "RAM-009",
+      "sequence": 60,
+      "category": "ramadan",
+      "text_ar": "يا واسع الفضل، ارزقنا ليلة القدر واجعلنا فيها من المقبولين.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 100,
+      "rule_ids": [
+        "rule_ramadan_hijri_month"
+      ],
+      "tags": [
+        "رمضان",
+        "دعاء",
+        "موسمي",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-061",
+      "code": "RAM-010",
+      "sequence": 61,
+      "category": "ramadan",
+      "text_ar": "الحمد لله الذي بلغنا رمضان، اللهم أعنا على تمامه.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 100,
+      "rule_ids": [
+        "rule_ramadan_hijri_month"
+      ],
+      "tags": [
+        "رمضان",
+        "دعاء",
+        "موسمي",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-062",
+      "code": "RAM-011",
+      "sequence": 62,
+      "category": "ramadan",
+      "text_ar": "اجعل رمضان محطة لتغيير عاداتك للأفضل.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 100,
+      "rule_ids": [
+        "rule_ramadan_hijri_month"
+      ],
+      "tags": [
+        "رمضان",
+        "دعاء",
+        "موسمي",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-063",
+      "code": "GEN-001",
+      "sequence": 63,
+      "category": "general",
+      "text_ar": "سبحان الله، والحمد لله، ولا إله إلا الله، والله أكبر.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 60,
+      "rule_ids": [
+        "rule_anytime"
+      ],
+      "tags": [
+        "دعاء",
+        "ذكر",
+        "عام",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-064",
+      "code": "GEN-002",
+      "sequence": 64,
+      "category": "general",
+      "text_ar": "لا حول ولا قوة إلا بالله العلي العظيم.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 60,
+      "rule_ids": [
+        "rule_anytime"
+      ],
+      "tags": [
+        "دعاء",
+        "ذكر",
+        "عام",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-065",
+      "code": "GEN-003",
+      "sequence": 65,
+      "category": "general",
+      "text_ar": "اللهم صل وسلم وبارك على نبينا محمد وعلى آله وصحبه.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 60,
+      "rule_ids": [
+        "rule_anytime"
+      ],
+      "tags": [
+        "دعاء",
+        "ذكر",
+        "عام",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-066",
+      "code": "GEN-004",
+      "sequence": 66,
+      "category": "general",
+      "text_ar": "أستغفر الله العظيم وأتوب إليه.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 60,
+      "rule_ids": [
+        "rule_anytime"
+      ],
+      "tags": [
+        "دعاء",
+        "ذكر",
+        "عام",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-067",
+      "code": "GEN-005",
+      "sequence": 67,
+      "category": "general",
+      "text_ar": "لا إله إلا أنت سبحانك إني كنت من الظالمين.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 60,
+      "rule_ids": [
+        "rule_anytime"
+      ],
+      "tags": [
+        "دعاء",
+        "ذكر",
+        "عام",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-068",
+      "code": "GEN-006",
+      "sequence": 68,
+      "category": "general",
+      "text_ar": "اللهم آتنا في الدنيا حسنة وفي الآخرة حسنة وقنا عذاب النار.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 60,
+      "rule_ids": [
+        "rule_anytime"
+      ],
+      "tags": [
+        "دعاء",
+        "ذكر",
+        "عام",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-069",
+      "code": "GEN-007",
+      "sequence": 69,
+      "category": "general",
+      "text_ar": "اللهم اكفني بحلالك عن حرامك وأغنني بفضلك عمن سواك.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 60,
+      "rule_ids": [
+        "rule_anytime"
+      ],
+      "tags": [
+        "دعاء",
+        "ذكر",
+        "عام",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-070",
+      "code": "GEN-008",
+      "sequence": 70,
+      "category": "general",
+      "text_ar": "رب اشرح لي صدري ويسر لي أمري واحلل عقدة من لساني.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 60,
+      "rule_ids": [
+        "rule_anytime"
+      ],
+      "tags": [
+        "دعاء",
+        "ذكر",
+        "عام",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-071",
+      "code": "GEN-009",
+      "sequence": 71,
+      "category": "general",
+      "text_ar": "اللهم بارك لي في رزقي ووقتي وجهدي.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 60,
+      "rule_ids": [
+        "rule_anytime"
+      ],
+      "tags": [
+        "دعاء",
+        "ذكر",
+        "عام",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-072",
+      "code": "GEN-010",
+      "sequence": 72,
+      "category": "general",
+      "text_ar": "يا مقلب القلوب ثبت قلبي على دينك.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 60,
+      "rule_ids": [
+        "rule_anytime"
+      ],
+      "tags": [
+        "دعاء",
+        "ذكر",
+        "عام",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-073",
+      "code": "GEN-011",
+      "sequence": 73,
+      "category": "general",
+      "text_ar": "اللهم إني أسألك الهدى والتقى والعفاف والغنى.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 60,
+      "rule_ids": [
+        "rule_anytime"
+      ],
+      "tags": [
+        "دعاء",
+        "ذكر",
+        "عام",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-074",
+      "code": "GEN-012",
+      "sequence": 74,
+      "category": "general",
+      "text_ar": "سبحان الله وبحمده، سبحان الله العظيم.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 60,
+      "rule_ids": [
+        "rule_anytime"
+      ],
+      "tags": [
+        "دعاء",
+        "ذكر",
+        "عام",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-075",
+      "code": "GEN-013",
+      "sequence": 75,
+      "category": "general",
+      "text_ar": "ربنا آتنا من لدنك رحمة وهيئ لنا من أمرنا رشداً.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 60,
+      "rule_ids": [
+        "rule_anytime"
+      ],
+      "tags": [
+        "دعاء",
+        "ذكر",
+        "عام",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-076",
+      "code": "GEN-014",
+      "sequence": 76,
+      "category": "general",
+      "text_ar": "اللهم اجعلنا من المتوكلين عليك حق التوكل.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 60,
+      "rule_ids": [
+        "rule_anytime"
+      ],
+      "tags": [
+        "دعاء",
+        "ذكر",
+        "عام",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-077",
+      "code": "GEN-015",
+      "sequence": 77,
+      "category": "general",
+      "text_ar": "اللهم انفعني بما علمتني وعلمني ما ينفعني وزدني علماً.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 60,
+      "rule_ids": [
+        "rule_anytime"
+      ],
+      "tags": [
+        "دعاء",
+        "ذكر",
+        "عام",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-078",
+      "code": "GEN-016",
+      "sequence": 78,
+      "category": "general",
+      "text_ar": "لا إله إلا الله وحده لا شريك له، له الملك وله الحمد وهو على كل شيء قدير.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 60,
+      "rule_ids": [
+        "rule_anytime"
+      ],
+      "tags": [
+        "دعاء",
+        "ذكر",
+        "عام",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-079",
+      "code": "GEN-017",
+      "sequence": 79,
+      "category": "general",
+      "text_ar": "اللهم إني أعوذ بك من زوال نعمتك وتحول عافيتك.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 60,
+      "rule_ids": [
+        "rule_anytime"
+      ],
+      "tags": [
+        "دعاء",
+        "ذكر",
+        "عام",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-080",
+      "code": "GEN-018",
+      "sequence": 80,
+      "category": "general",
+      "text_ar": "اللهم اهدنا لأحسن الأخلاق لا يهدي لأحسنها إلا أنت.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 60,
+      "rule_ids": [
+        "rule_anytime"
+      ],
+      "tags": [
+        "دعاء",
+        "ذكر",
+        "عام",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-081",
+      "code": "GEN-019",
+      "sequence": 81,
+      "category": "general",
+      "text_ar": "يا رب توفيقك وتسيرك في كل خطوة نخطوها.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 60,
+      "rule_ids": [
+        "rule_anytime"
+      ],
+      "tags": [
+        "دعاء",
+        "ذكر",
+        "عام",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-082",
+      "code": "GEN-020",
+      "sequence": 82,
+      "category": "general",
+      "text_ar": "اللهم ارزقنا القناعة والرضا بما قسمته لنا.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 60,
+      "rule_ids": [
+        "rule_anytime"
+      ],
+      "tags": [
+        "دعاء",
+        "ذكر",
+        "عام",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-083",
+      "code": "GEN-021",
+      "sequence": 83,
+      "category": "general",
+      "text_ar": "اللهم إني أسألك الثبات في الأمر والعزيمة على الرشد.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 60,
+      "rule_ids": [
+        "rule_anytime"
+      ],
+      "tags": [
+        "دعاء",
+        "ذكر",
+        "عام",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-084",
+      "code": "GEN-022",
+      "sequence": 84,
+      "category": "general",
+      "text_ar": "يا حي يا قيوم برحمتك أستغيث.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 60,
+      "rule_ids": [
+        "rule_anytime"
+      ],
+      "tags": [
+        "دعاء",
+        "ذكر",
+        "عام",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-085",
+      "code": "GEN-023",
+      "sequence": 85,
+      "category": "general",
+      "text_ar": "الحمد لله الذي بنعمته تتم الصالحات.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 60,
+      "rule_ids": [
+        "rule_anytime"
+      ],
+      "tags": [
+        "دعاء",
+        "ذكر",
+        "عام",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-086",
+      "code": "QCK-001",
+      "sequence": 86,
+      "category": "quick",
+      "text_ar": "صَلِّ على النبي محمد",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 50,
+      "rule_ids": [
+        "rule_anytime_short"
+      ],
+      "tags": [
+        "سريع",
+        "تذكير",
+        "قصير",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-087",
+      "code": "QCK-002",
+      "sequence": 87,
+      "category": "quick",
+      "text_ar": "استغفر الله العظيم",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 50,
+      "rule_ids": [
+        "rule_anytime_short"
+      ],
+      "tags": [
+        "سريع",
+        "تذكير",
+        "قصير",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-088",
+      "code": "QCK-003",
+      "sequence": 88,
+      "category": "quick",
+      "text_ar": "الحمد لله دائماً وأبداً",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 50,
+      "rule_ids": [
+        "rule_anytime_short"
+      ],
+      "tags": [
+        "سريع",
+        "تذكير",
+        "قصير",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-089",
+      "code": "QCK-004",
+      "sequence": 89,
+      "category": "quick",
+      "text_ar": "سبحان الله العظيم",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 50,
+      "rule_ids": [
+        "rule_anytime_short"
+      ],
+      "tags": [
+        "سريع",
+        "تذكير",
+        "قصير",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-090",
+      "code": "QCK-005",
+      "sequence": 90,
+      "category": "quick",
+      "text_ar": "لا إله إلا الله",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 50,
+      "rule_ids": [
+        "rule_anytime_short"
+      ],
+      "tags": [
+        "سريع",
+        "تذكير",
+        "قصير",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-091",
+      "code": "QCK-006",
+      "sequence": 91,
+      "category": "quick",
+      "text_ar": "الله أكبر كبيراً",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 50,
+      "rule_ids": [
+        "rule_anytime_short"
+      ],
+      "tags": [
+        "سريع",
+        "تذكير",
+        "قصير",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-092",
+      "code": "QCK-007",
+      "sequence": 92,
+      "category": "quick",
+      "text_ar": "يا فتاح افتح علينا",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 50,
+      "rule_ids": [
+        "rule_anytime_short"
+      ],
+      "tags": [
+        "سريع",
+        "تذكير",
+        "قصير",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-093",
+      "code": "QCK-008",
+      "sequence": 93,
+      "category": "quick",
+      "text_ar": "يا رزاق ارزقنا من واسع فضلك",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 50,
+      "rule_ids": [
+        "rule_anytime_short"
+      ],
+      "tags": [
+        "سريع",
+        "تذكير",
+        "قصير",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-094",
+      "code": "QCK-009",
+      "sequence": 94,
+      "category": "quick",
+      "text_ar": "توكلت على الله",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 50,
+      "rule_ids": [
+        "rule_anytime_short"
+      ],
+      "tags": [
+        "سريع",
+        "تذكير",
+        "قصير",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-095",
+      "code": "QCK-010",
+      "sequence": 95,
+      "category": "quick",
+      "text_ar": "اللهم لا سهل إلا ما جعلته سهلاً",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 50,
+      "rule_ids": [
+        "rule_anytime_short"
+      ],
+      "tags": [
+        "سريع",
+        "تذكير",
+        "قصير",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-096",
+      "code": "FRI-001",
+      "sequence": 96,
+      "category": "friday",
+      "text_ar": "اللهم في يوم الجمعة، نسألك فرجاً لكل هم واستجابة لكل دعاء.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 95,
+      "rule_ids": [
+        "rule_friday_anytime"
+      ],
+      "tags": [
+        "جمعة",
+        "دعاء",
+        "أسبوعي",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-097",
+      "code": "FRI-002",
+      "sequence": 97,
+      "category": "friday",
+      "text_ar": "نور الله جمعتك بالإيمان وقراءة سورة الكهف.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 95,
+      "rule_ids": [
+        "rule_friday_anytime"
+      ],
+      "tags": [
+        "جمعة",
+        "دعاء",
+        "أسبوعي",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-098",
+      "code": "FRI-003",
+      "sequence": 98,
+      "category": "friday",
+      "text_ar": "أكثروا من الصلاة على النبي في هذا اليوم المبارك.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 95,
+      "rule_ids": [
+        "rule_friday_anytime"
+      ],
+      "tags": [
+        "جمعة",
+        "دعاء",
+        "أسبوعي",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-099",
+      "code": "FRI-004",
+      "sequence": 99,
+      "category": "friday",
+      "text_ar": "جمعة مباركة، اللهم اجعلها فاتحة خير لأسبوعنا القادم.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 95,
+      "rule_ids": [
+        "rule_friday_anytime"
+      ],
+      "tags": [
+        "جمعة",
+        "دعاء",
+        "أسبوعي",
+        "شركة"
+      ]
+    },
+    {
+      "id": "MSG-100",
+      "code": "FRI-005",
+      "sequence": 100,
+      "category": "friday",
+      "text_ar": "اللهم بارك لنا في أعمالنا واجعلها خالصة لوجهك الكريم.",
+      "language": "ar",
+      "enabled": true,
+      "weight": 1,
+      "priority": 95,
+      "rule_ids": [
+        "rule_friday_anytime"
+      ],
+      "tags": [
+        "جمعة",
+        "دعاء",
+        "أسبوعي",
+        "شركة"
+      ]
+    }
+  ]
+}

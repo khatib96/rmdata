@@ -1,0 +1,105 @@
+{
+  "name": "rmdata-system",
+  "productName": "RMDATA.System",
+  "version": "1.4.1",
+  "description": "Comprehensive ERP System for Al-Redaa Uniform",
+  "main": "dist-electron/electron/main.js",
+  "scripts": {
+    "db:migrate": "node scripts/add-city-column.js",
+    "db:contract-branch": "node scripts/add-contract-branch-id.js",
+    "migrate:files:cloud": "node scripts/migrate-local-documents-to-cloud.mjs",
+    "dev": "npx concurrently \"npm run dev:api\" \"npm run dev:react\" \"npm run dev:electron\"",
+    "dev:web": "npx concurrently \"npm run dev:api\" \"npm run dev:react\"",
+    "dev:api": "node server/dev-api-server.js",
+    "test:sqlite-mysql": "node --test server/sqlite-to-mysql.test.js",
+    "dev:react": "vite",
+    "dev:electron": "wait-on http://localhost:5173 -t 30000 -d 2000 && electron .",
+    "build": "npm run build:react && npm run build:electron",
+    "restore:vite-index": "node scripts/restore-vite-index.cjs",
+    "build:react": "node scripts/assert-vite-index.cjs && vite build",
+    "build:electron": "tsc -p electron",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "clean": "npx rimraf node_modules dist dist-electron",
+    "reset": "npm run clean && npm install && npm run build:electron"
+  },
+  "keywords": [
+    "electron",
+    "react",
+    "erp",
+    "typescript"
+  ],
+  "author": "Al-Redaa Uniform",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20.10.0",
+    "@types/react": "^18.2.45",
+    "@types/react-dom": "^18.2.18",
+    "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^8.2.2",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.8",
+    "wait-on": "^7.2.0"
+  },
+  "dependencies": {
+    "autoprefixer": "^10.4.16",
+    "bcryptjs": "^3.0.3",
+    "clsx": "^2.0.0",
+    "date-fns": "^3.0.6",
+    "electron-updater": "^6.8.3",
+    "express": "^4.18.2",
+    "i18next": "^25.8.18",
+    "jsonwebtoken": "^9.0.3",
+    "jspdf": "^2.5.1",
+    "lucide-react": "^0.303.0",
+    "multer": "^2.1.1",
+    "mysql2": "^3.11.0",
+    "node-zklib": "^1.3.0",
+    "postcss": "^8.4.32",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-hot-toast": "^2.4.1",
+    "react-i18next": "^16.5.8",
+    "react-router-dom": "^6.21.1",
+    "reflect-metadata": "^0.1.14",
+    "sqlite3": "^5.1.6",
+    "tailwindcss": "^3.4.0",
+    "typeorm": "^0.3.17",
+    "ws": "^8.20.0",
+    "zklib-js": "^1.3.5",
+    "zustand": "^4.4.7"
+  },
+  "build": {
+    "appId": "com.rmdata.system",
+    "productName": "RMDATA",
+    "npmRebuild": false,
+    "releaseInfo": {
+      "releaseNotes": "# الإصدار 1.4.1 — إصلاحات الأمان والبيانات\n\n## 🛠️ الإصلاحات والتحسينات\n\n- **حل مشكلة اختفاء بيانات الموظفين**: تم إصلاح خلل فني كان يتسبب في إخفاء صور ومعلومات الموظفين لبعض المستخدمين (بما في ذلك المدراء) بسبب تضارب في جلسات الدخول القديمة.\n- **دعم المعرفات عن بعد (Remote ID Support)**: تحسين الربط مع قواعد البيانات الخارجية لضمان دقة مزامنة الصلاحيات.\n- **تحسين استجابة الواجهة**: تحسين أداء محرك الصلاحيات لضمان تحميل أسرع للبيانات.\n\n## 🛡️ ملخص ميزات v4 الأساسية (من الإصدار السابق)\n\n- **170 نقطة تحكم**: نظام صلاحيات دقيق يغطي الحقول، التبويبات، والإجراءات.\n- **ربط الهوية بالاسم (Username-based)**: لضمان أمان الصلاحيات وتوافقها بين السيرفر والبرنامج المحلي.\n- **كاش ذكي وسجل تدقيق (Audit Logs)**: لمراقبة التغييرات وتحسين السرعة.\n\n---\n\nتم تطوير هذا التحديث لضمان استقرار العرض والأمان في شركة **الرداء الموحد**."
+    },
+    "publish": {
+      "provider": "generic",
+      "url": "https://api.rmdata.tech/updates/win"
+    },
+    "directories": {
+      "output": "release/"
+    },
+    "win": {
+      "icon": "public/assets/rmdata_logo.ico",
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "public/assets/rmdata_logo.ico",
+      "uninstallerIcon": "public/assets/rmdata_logo.ico",
+      "installerHeaderIcon": "public/assets/rmdata_logo.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}

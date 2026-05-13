@@ -1,0 +1,16 @@
+Options -Indexes
+# ترميز افتراضي للنصوص (يقلّل Mojibake للعربية إن لم يُضبط charset في الاستجابة)
+AddDefaultCharset UTF-8
+# كان "disabled" فيمنع تشغيل index.php على "/" → 403 مع -Indexes. نريد صفحة decoy من index.php.
+DirectoryIndex index.php
+
+<IfModule mod_rewrite.c>
+RewriteEngine On
+# احتياط إن لم يُطبَّق DirectoryIndex على الاستضافة
+RewriteRule ^$ index.php [L]
+RewriteRule ^api/(.*)$ api/index.php [QSA,L]
+</IfModule>
+
+<FilesMatch "^(\.env|composer\.(json|lock))$">
+  Require all denied
+</FilesMatch>

@@ -1,0 +1,25 @@
+{
+  "extends": "../tsconfig.node.json",
+  "compilerOptions": {
+    "outDir": "../dist-electron",
+    "rootDir": "..",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "target": "ES2020",
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "**/*.ts",
+    "../src/database/**/*.ts",
+    "../src/constants/employee.ts",
+    "../src/constants/housing.ts",
+    "../src/types/shared.ts",
+    "../src/permissions/permissionCatalogV2.ts",
+    "../src/utils/sqlInsertValidator.ts"
+  ]
+}

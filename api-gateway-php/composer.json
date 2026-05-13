@@ -1,0 +1,9 @@
+{
+  "name": "rmdata/api-gateway-php",
+  "description": "RMDATA Hostinger PHP API gateway for remote auth and cloud file storage",
+  "type": "project",
+  "require": {
+    "php": ">=8.0",
+    "firebase/php-jwt": "^6.11"
+  }
+}

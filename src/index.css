@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-light-background text-dark-charcoal;
+    font-family: 'Cairo', 'Tajawal', sans-serif;
+  }
+}
+
+@layer utilities {
+  .rtl {
+    direction: rtl;
+  }
+
+  .ltr {
+    direction: ltr;
+  }
+
+  /* Mobile: modals 95–100% width, scrollable, safe area */
+  @media (max-width: 1023px) {
+    .modal-box-mobile {
+      width: 95%;
+      max-width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+  }
+
+  /* Minimum touch target for buttons/links (44x44px) */
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+@media print {
+  /* Hide sidebar, topbar, bottom nav, and other UI elements */
+  aside, 
+  header, 
+  nav, 
+  .print-hidden,
+  button,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Reset main padding/margin for print */
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  body {
+    background: white !important;
+  }
+
+  /* Force table to take full width and show borders */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  th, td {
+    border: 1px solid #ddd !important;
+    padding: 8px !important;
+    font-size: 10pt !important;
+  }
+
+  /* Ensure rows don't break across pages ungracefully */
+  tr {
+    page-break-inside: avoid;
+  }
+
+  /* Show the print-only header */
+  .show-on-print {
+    display: block !important;
+  }
+}

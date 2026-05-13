@@ -1,0 +1,13 @@
+# Refactor `electron/main.ts`
+
+- `[x]` Create `shared-state.ts`
+- `[x]` Create `remote-api-utils.ts`
+- `[x]` Create `ipc/auth-ipc.ts`
+- `[x]` Create `ipc/document-ipc.ts`
+- `[x]` Create `ipc/file-ipc.ts`
+- `[x]` Create `ipc/backup-ipc.ts`
+- `[x]` Create `ipc/employer-ipc.ts`
+- `[x]` Create `ipc/settings-ipc.ts`
+- `[x]` Refactor `main.ts` to import and call register functions
+- `[x]` Fix TypeScript errors
+- `[ ]` Manual verification of core functionalities
