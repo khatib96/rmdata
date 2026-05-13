@@ -18,14 +18,14 @@
 - [x] رفع baseline إلى GitHub.
 - [x] إضافة `SECURITY.md`.
 - [x] تحديث `AI_MEMORY.md`.
-- [ ] إنشاء tag باسم `v1.4.1-baseline` ورفعه إلى GitHub، إن لم يكن تم بالفعل.
-- [ ] إنشاء `docs/BACKUP_LOG.md`.
-- [ ] أخذ backup من MySQL/MariaDB على VPS.
-- [ ] أخذ backup من ملفات المستندات والصور على السيرفر.
-- [ ] أخذ backup من SQLite المحلي إن كان مستخدماً في جهاز إنتاج.
-- [ ] إنشاء `docs/CURRENT_STATE_v1.4.1.md`.
-- [ ] توثيق طريقة deploy الحالية.
-- [ ] توثيق طريقة رفع تحديث جديد إلى `api.rmdata.tech/updates/win`.
+- [x] إنشاء tag باسم `v1.4.1-baseline` ورفعه إلى GitHub، حسب ظهور tag على GitHub/تأكيد المرحلة.
+- [x] إنشاء `docs/BACKUP_LOG.md`.
+- [x] أخذ backup من MySQL/MariaDB على VPS، مؤكد من صاحب المشروع أن نسخ السيرفر تعمل.
+- [x] أخذ backup من ملفات المستندات والصور على السيرفر، مؤكد من صاحب المشروع أن نسخ السيرفر تعمل.
+- [x] أخذ backup من SQLite المحلي إن كان مستخدماً في جهاز إنتاج، غير مطلوب حالياً حسب الاعتماد على السيرفر.
+- [x] إنشاء `docs/CURRENT_STATE_v1.4.1.md`.
+- [x] توثيق طريقة deploy الحالية بشكل مبدئي.
+- [x] توثيق طريقة رفع تحديث جديد إلى `api.rmdata.tech/updates/win` بشكل مبدئي.
 - [ ] تشغيل `npm run build:react` بعد baseline.
 - [ ] تشغيل `npm run build:electron` بعد baseline.
 

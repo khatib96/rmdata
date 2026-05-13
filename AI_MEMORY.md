@@ -78,10 +78,10 @@ RMDATA هو نظام إدارة داخلي لشركة الرداء الموحد.
 - [x] عمل baseline commit.
 - [x] رفع baseline إلى GitHub.
 - [x] إضافة `SECURITY.md`.
-- [ ] إنشاء/رفع tag باسم `v1.4.1-baseline` إن لم يكن تم بالفعل.
-- أخذ backup من MySQL/SQLite/files.
-- توثيق الوضع الحالي في `docs/CURRENT_STATE_v1.4.1.md`.
-- إنشاء `docs/BACKUP_LOG.md`.
+- [x] إنشاء/رفع tag باسم `v1.4.1-baseline` حسب تأكيد المرحلة/ظهور tag.
+- [x] أخذ backup من MySQL/files على السيرفر، مؤكد من صاحب المشروع أن النسخ تعمل.
+- [x] توثيق الوضع الحالي في `docs/CURRENT_STATE_v1.4.1.md`.
+- [x] إنشاء `docs/BACKUP_LOG.md`.
 
 الأولوية 1:
 
@@ -229,6 +229,66 @@ RMDATA هو نظام إدارة داخلي لشركة الرداء الموحد.
 
 - التأكد من وجود tag baseline على GitHub.
 - البدء بملفات backup والتوثيق: `docs/BACKUP_LOG.md` و`docs/CURRENT_STATE_v1.4.1.md`.
+
+### 2026-05-13 - إكمال ملفات المرحلة 0
+
+ما تم:
+
+- إنشاء `docs/BACKUP_LOG.md`.
+- إنشاء `docs/CURRENT_STATE_v1.4.1.md`.
+- تحديث checklist في `docs/v2-repair-and-development-roadmap.md`.
+- تسجيل أن backup السيرفر والتحديثات موجودة وتعمل حسب تأكيد صاحب المشروع.
+
+القرار:
+
+- المرحلة 0 تعتبر منجزة تقريباً من ناحية Git/GitHub/توثيق/Backup.
+- المتبقي العملي الوحيد قبل المرحلة 1 هو تشغيل build بعد baseline إذا أردنا توثيق نتيجة حديثة.
+
+الخطوة التالية:
+
+- رفع ملفات المرحلة 0 إلى Git.
+- بعدها نبدأ المرحلة 1: إصلاح `npm run typecheck`.
+
+### 2026-05-13 - فحص السيرفر قراءة فقط
+
+ما تم:
+
+- تم الدخول إلى السيرفر عبر SSH:
+  - user: `deploy`
+  - host: `api.rmdata.tech`
+- تم فحص معلومات النظام والموارد.
+- تم فحص مسارات `/var/www/api.rmdata.tech`.
+- تم فحص PM2 وNginx.
+- تم فحص آخر logs لـ `rmdata-node-api`.
+- تم تحديث `docs/CURRENT_STATE_v1.4.1.md`.
+- تم تحديث `docs/BACKUP_LOG.md`.
+
+نتائج مهمة:
+
+- السيرفر: Ubuntu 24.04.4 LTS.
+- Node.js: `v20.20.2`.
+- npm: `10.8.2`.
+- PM2: `6.0.14`.
+- Nginx: active.
+- API process: `rmdata-node-api`, online.
+- API script: `/var/www/api.rmdata.tech/current/server/dev-api-server.js`.
+- API cwd: `/var/www/api.rmdata.tech/current`.
+- API port: `3001`.
+- Storage root: `/var/www/api.rmdata.tech/storage`.
+- Documents: `/var/www/api.rmdata.tech/storage/documents`.
+- Images: `/var/www/api.rmdata.tech/storage/images`.
+
+ملاحظات:
+
+- السيرفر يحتاج restart حسب رسالة النظام، لكن لا يتم عمل reboot الآن بدون نافذة صيانة.
+- يوجد 13 update متاح، ولا نطبقها الآن حتى لا نؤثر على الإنتاج.
+- logs القديمة فيها خطأ `seedPermissionCatalog is not a function` بتاريخ 2026-04-12، لكن logs اللاحقة تظهر `Permission catalog seed: OK`.
+- مسار `/var/www/api.rmdata.tech/public/updates/win` غير موجود.
+- مسار التحديثات الفعلي المؤكد من ملفات السيرفر: `/var/www/api.rmdata.tech/html/updates`.
+
+الخطوة التالية:
+
+- رفع تحديثات التوثيق إلى Git.
 
 ## 8. قالب تسجيل جلسة جديدة
 
