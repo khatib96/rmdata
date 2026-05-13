@@ -290,6 +290,34 @@ RMDATA هو نظام إدارة داخلي لشركة الرداء الموحد.
 
 - رفع تحديثات التوثيق إلى Git.
 
+### 2026-05-13 - إغلاق تحقق المرحلة 0
+
+ما تم:
+
+- تشغيل `npm run build:react` بعد baseline.
+- تشغيل `npm run build:electron` بعد baseline.
+- تحديث checklist في `docs/v2-repair-and-development-roadmap.md`.
+
+نتائج التحقق:
+
+- `npm run build:react`: نجح.
+- `npm run build:electron`: نجح.
+- ظهر تحذير Vite أن chunk رئيسي أكبر من 500KB، وهذا ليس فشلاً لكنه يدخل ضمن تحسينات لاحقة.
+- ظهر تحذير حول `postcss.config.js` و`MODULE_TYPELESS_PACKAGE_JSON`، وهو ليس فشلاً.
+
+ملاحظة:
+
+- الأوامر فشلت داخل sandbox بسبب `EPERM` على `C:\Users\alkat`، ثم نجحت خارج sandbox.
+
+القرار:
+
+- المرحلة 0 مكتملة من ناحية Git/GitHub/توثيق/سيرفر/build.
+
+الخطوة التالية:
+
+- رفع تحديث `AI_MEMORY.md` و`docs/v2-repair-and-development-roadmap.md`.
+- بدء المرحلة 1 لاحقاً: إصلاح `npm run typecheck`.
+
 ## 8. قالب تسجيل جلسة جديدة
 
 عند نهاية كل جلسة، أضف مدخلاً بهذا الشكل:

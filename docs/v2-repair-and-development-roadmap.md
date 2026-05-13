@@ -26,8 +26,8 @@
 - [x] إنشاء `docs/CURRENT_STATE_v1.4.1.md`.
 - [x] توثيق طريقة deploy الحالية بشكل مبدئي.
 - [x] توثيق طريقة رفع تحديث جديد إلى `api.rmdata.tech/updates/win` بشكل مبدئي.
-- [ ] تشغيل `npm run build:react` بعد baseline.
-- [ ] تشغيل `npm run build:electron` بعد baseline.
+- [x] تشغيل `npm run build:react` بعد baseline.
+- [x] تشغيل `npm run build:electron` بعد baseline.
 
 ### المرحلة 1: إصلاح TypeScript وثبات البناء
 
