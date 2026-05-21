@@ -52,7 +52,8 @@ export default function AssignResponsibleModal({
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!isOpen || !window.electronAPI?.dbQuery) return;
+    const api = window.electronAPI;
+    if (!isOpen || !api?.dbQuery) return;
     setSelectedEmployeeId(currentEmployeeId);
     setSelectedEmployerId(currentEmployerId);
     setManualName(
@@ -61,7 +62,7 @@ export default function AssignResponsibleModal({
     setError('');
     const load = async () => {
       if (isDriver) {
-        const res = await window.electronAPI.dbQuery(
+        const res = await api.dbQuery(
           `SELECT id, name, code FROM employees
            WHERE (status IS NULL OR status NOT IN ('terminated', 'archived', 'visa_cancelled'))
            AND (profession LIKE '%سائق%' OR professionPerContract LIKE '%سائق%' OR professionKeys LIKE '%driver%')
@@ -70,11 +71,11 @@ export default function AssignResponsibleModal({
         setEmployeeList((res?.data ?? []) as EmployeeOption[]);
         setEmployerList([]);
       } else {
-        const empRes = await window.electronAPI.dbQuery(
+        const empRes = await api.dbQuery(
           `SELECT id, name, code FROM employees WHERE (status IS NULL OR status NOT IN ('terminated', 'archived', 'visa_cancelled')) ORDER BY name`
         );
         setEmployeeList((empRes?.data ?? []) as EmployeeOption[]);
-        const ownRes = await window.electronAPI.dbQuery(
+        const ownRes = await api.dbQuery(
           `SELECT id, fullName as name, code FROM employers WHERE (status IS NULL OR status != 'archived') ORDER BY fullName`
         );
         setEmployerList((ownRes?.data ?? []) as EmployerOption[]);

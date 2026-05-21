@@ -45,22 +45,6 @@ function InfoRow({ label, value }: { label: string; value?: string | number }) {
   );
 }
 
-function ExpiryInfo({ label, date, t }: { label: string; date?: string; t: (k: string, opts?: { count?: number }) => string }) {
-  if (!date) return null;
-  const days = Math.ceil((new Date(date).getTime() - Date.now()) / 86400000);
-  const color = days < 0 ? 'text-red-600 bg-red-50' : days < 30 ? 'text-amber-600 bg-amber-50' : days < 90 ? 'text-yellow-600 bg-yellow-50' : 'text-green-600 bg-green-50';
-  const status = days < 0 ? t('employers.expiredDays') : t('employers.daysLeft', { count: days });
-  return (
-    <div className="flex items-center justify-between py-2.5 border-b border-dark-charcoal/5 last:border-0">
-      <div>
-        <span className="text-xs text-dark-charcoal/50 block">{label}</span>
-        <span className="text-sm font-medium">{new Date(date).toLocaleDateString('en')}</span>
-      </div>
-      <span className={`text-xs px-2 py-1 rounded-full font-bold ${color}`}>{status}</span>
-    </div>
-  );
-}
-
 export default function EmployerProfile() {
   const { t } = useTranslation();
   const dir = useLanguageStore((s) => s.dir);
@@ -177,8 +161,8 @@ export default function EmployerProfile() {
     if (employer.status === 'archived') {
       await (window as any).electronAPI.employerRestore(employer.id);
       logActivity({
-        userId: user?.id,
-        username: user?.username || 'unknown',
+        performedByUserId: user?.id,
+        performedByUsername: user?.username || 'unknown',
         module: 'archive',
         action: 'restore',
         entityType: 'employer',
@@ -191,8 +175,8 @@ export default function EmployerProfile() {
         await window.electronAPI.dbQuery('DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['employer', employer.id]);
       }
       logActivity({
-        userId: user?.id,
-        username: user?.username || 'unknown',
+        performedByUserId: user?.id,
+        performedByUsername: user?.username || 'unknown',
         module: 'archive',
         action: 'archive',
         entityType: 'employer',
@@ -647,7 +631,7 @@ export default function EmployerProfile() {
       <DocumentPreviewModal
         preview={docPreview}
         onClose={() => setDocPreview(null)}
-        onOpenExternal={docPreview ? () => openDocumentExternal(docPreview.relativePath ?? '') : undefined}
+        onOpenExternal={docPreview ? () => { void openDocumentExternal(docPreview.relativePath ?? ''); } : undefined}
       />
 
       {expiryPopup && (

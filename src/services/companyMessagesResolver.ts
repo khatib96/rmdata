@@ -83,13 +83,14 @@ function getCandidates(catalog: Catalog, category: string): CompanyMessage[] {
   const list: CompanyMessage[] = [];
   for (const m of catalog.messages) {
     if (m.category !== category) continue;
-    if (m.enabled === false) continue;
+    const enabled = m.enabled !== false;
+    if (!enabled) continue;
     list.push({
       id: m.id,
       code: m.code ?? m.id,
       category: m.category,
       text_ar: m.text_ar,
-      enabled: m.enabled !== false,
+      enabled,
       weight: typeof m.weight === 'number' && m.weight > 0 ? m.weight : 1,
     });
   }

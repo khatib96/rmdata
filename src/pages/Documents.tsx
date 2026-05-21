@@ -19,7 +19,6 @@ import {
   Trash2,
   Store,
   Users,
-  User,
   Home,
   Smartphone,
   Car,

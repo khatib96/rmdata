@@ -13,6 +13,7 @@ import { getAssignableEmployeesForPhones } from '../../services/employeeService'
 import { getAssignableEmployersForPhones } from '../../services/employerService';
 import { getActiveHousingForPhoneAssignments } from '../../services/housingService';
 import { listDocuments, deleteDocumentById } from '../../services/documentService';
+import type { DocumentListItem } from '../../types/documents';
 import { logActivity } from '../../utils/activityLog';
 import { useAuthStore } from '../../store/authStore';
 
@@ -69,7 +70,7 @@ export default function PhoneProfile() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [archiveConfirm, setArchiveConfirm] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-  const [phoneDocuments, setPhoneDocuments] = useState<{ id: number; relativePath: string; customName: string | null; section: string | null }[]>([]);
+  const [phoneDocuments, setPhoneDocuments] = useState<DocumentListItem[]>([]);
 
   const [branches, setBranches] = useState<{ id: number; name: string }[]>([]);
   const [employees, setEmployees] = useState<{ id: number; name: string }[]>([]);

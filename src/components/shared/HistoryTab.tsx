@@ -54,7 +54,7 @@ const ACTION_COLORS: Record<string, string> = {
   create: 'bg-emerald-500', edit: 'bg-blue-500', archive: 'bg-orange-500', restore: 'bg-green-500',
 };
 
-export default function HistoryTab({ entityType, entityId, entityName }: HistoryTabProps) {
+export default function HistoryTab({ entityType, entityId, entityName: _entityName }: HistoryTabProps) {
   const { t, i18n } = useTranslation();
   const isAr = i18n.language === 'ar';
   const dir = isAr ? 'rtl' : 'ltr';

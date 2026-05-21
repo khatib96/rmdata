@@ -54,10 +54,11 @@ export default function DatabaseSettings() {
       const results: { name: string; count: number }[] = [];
       for (const table of tables) {
         try {
-          const res = await window.electronAPI.dbQuery<{ cnt: number }>(
+          const res = await window.electronAPI.dbQuery(
             `SELECT COUNT(*) as cnt FROM ${table}`
           );
-          results.push({ name: table, count: res?.data?.[0]?.cnt ?? 0 });
+          const row = res?.data?.[0] as { cnt?: number } | undefined;
+          results.push({ name: table, count: row?.cnt ?? 0 });
         } catch {
           results.push({ name: table, count: -1 });
         }
@@ -224,7 +225,7 @@ export default function DatabaseSettings() {
               if (!apiUrl.trim() || !window.electronAPI?.testApiConnection) return;
               setTesting(true);
               try {
-                const res = await window.electronAPI.testApiConnection(apiUrl.trim(), apiUsername.trim(), apiPassword);
+                const res = await window.electronAPI.testApiConnection?.(apiUrl.trim(), apiUsername.trim(), apiPassword);
                 if (res?.success && res?.ok) {
                   toast.success(
                     (res.database ? t('settings.dbConnectionSuccess') + ' (قاعدة البيانات متاحة)' : t('settings.dbConnectionSuccess')) +
@@ -250,7 +251,7 @@ export default function DatabaseSettings() {
               if (!apiUrl.trim() || !window.electronAPI?.setDatabaseConnection) return;
               setSaving(true);
               try {
-                const res = await window.electronAPI.testApiConnection(apiUrl.trim(), apiUsername.trim(), apiPassword);
+                const res = await window.electronAPI.testApiConnection?.(apiUrl.trim(), apiUsername.trim(), apiPassword);
                 if (!res?.success || !res?.ok) {
                   toast.error(t('settings.dbConnectionFailed'));
                   return;

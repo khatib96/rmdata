@@ -54,7 +54,7 @@ export default function UpdateStatusModal({
   employee,
   hasStatusHistory,
   lastPeriodStartDate,
-  lastPeriodEndDate,
+  lastPeriodEndDate: _lastPeriodEndDate,
 }: UpdateStatusModalProps) {
   const { t } = useTranslation();
   const { user } = useAuthStore();
@@ -115,10 +115,14 @@ export default function UpdateStatusModal({
   const loanWorkBranches = loanType === LoanType.INTERNAL ? branches : filteredBranches;
 
   /** التبديل من إجازة/متوقف/لا يعمل إلى يعمل (حالة أساسية) → مطلوب تاريخ انتهاء الحالة السابقة */
-  const needReturnDateMain = newStatus === EmploymentStatus.ACTIVE && [EmploymentStatus.LEAVE, EmploymentStatus.SUSPENDED, EmploymentStatus.INACTIVE].includes(employee.status || '');
+  const prevMainStatus = employee.status || '';
+  const prevLoanSubStatus = employee.loanSubStatus || '';
+  const mainReturnFromStatuses = [EmploymentStatus.LEAVE, EmploymentStatus.SUSPENDED, EmploymentStatus.INACTIVE] as string[];
+  const loanReturnFromSubStatuses = [LoanSubStatus.LEAVE, LoanSubStatus.INACTIVE] as string[];
+  const needReturnDateMain = newStatus === EmploymentStatus.ACTIVE && mainReturnFromStatuses.includes(prevMainStatus);
   /** التبديل من إجازة/لا يعمل إلى يعمل (إعارة داخلية) → مطلوب تاريخ العودة */
   const needReturnDateLoan = newStatus === EmploymentStatus.SECONDED && loanType === LoanType.INTERNAL && loanSubStatus === LoanSubStatus.ACTIVE &&
-    [LoanSubStatus.LEAVE, LoanSubStatus.INACTIVE].includes(employee.loanSubStatus || '');
+    loanReturnFromSubStatuses.includes(prevLoanSubStatus);
   const needReturnDate = needReturnDateMain || needReturnDateLoan;
 
   useEffect(() => {
@@ -153,8 +157,10 @@ export default function UpdateStatusModal({
     (async () => {
       const bRes = await getEmployeeFormBranches();
       const estRes = await getEnabledEstablishmentBranchIds();
-      const estIds = new Set((estRes?.data ?? []).map((r: { branchId: number }) => r.branchId));
-      setBranches((bRes?.data ?? []).map((r: { id: number; name: string; tradeName?: string }) => ({
+      const estRows = (estRes?.data ?? []) as { branchId: number }[];
+      const branchRows = (bRes?.data ?? []) as { id: number; name: string; tradeName?: string }[];
+      const estIds = new Set(estRows.map((r) => r.branchId));
+      setBranches(branchRows.map((r) => ({
         id: r.id, name: r.name, tradeName: r.tradeName || r.name || '', hasEstablishment: estIds.has(r.id),
       })));
     })();
@@ -207,7 +213,7 @@ export default function UpdateStatusModal({
     setError('');
     setLoading(true);
     try {
-      const api = (window as unknown as { electronAPI?: { dbQuery?: (sql: string, params?: unknown[]) => Promise<{ success?: boolean }>; documentSave?: (opts: unknown) => Promise<unknown>; fileSelectDocument?: () => Promise<{ success?: boolean; filePath?: string }> } }).electronAPI;
+      const api = window.electronAPI;
       if (!api?.dbQuery) {
         setError(t('employees.connectionUnavailable'));
         setLoading(false);
@@ -238,8 +244,8 @@ export default function UpdateStatusModal({
       const oldSal = employee.actualSalary != null ? Number(employee.actualSalary) : null;
       const onlyBranchProfSal = workBr === oldWorkBr && professionDisplay === oldProfDisplay && actSal === oldSal;
 
-      const mainLeaveStatuses = [EmploymentStatus.LEAVE, EmploymentStatus.SUSPENDED, EmploymentStatus.INACTIVE];
-      const mainDateChanged = !statusChanged && mainLeaveStatuses.includes(employee.status || '') && (actionDate !== (lastPeriodStartDate || '').slice(0, 10));
+      const mainLeaveStatuses = [EmploymentStatus.LEAVE, EmploymentStatus.SUSPENDED, EmploymentStatus.INACTIVE] as string[];
+      const mainDateChanged = !statusChanged && mainLeaveStatuses.includes(prevMainStatus) && (actionDate !== (lastPeriodStartDate || '').slice(0, 10));
       const secondedDateChanged = !statusChanged && employee.status === EmploymentStatus.SECONDED &&
         (loanLeaveStartDate !== (employee.loanLeaveStartDate || '').slice(0, 10) || loanLeaveEndDate !== (employee.loanLeaveEndDate || '').slice(0, 10));
       const isDateOnlyCorrection = onlyBranchProfSal && (mainDateChanged || secondedDateChanged);

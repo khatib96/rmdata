@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import type { LucideIcon } from 'lucide-react';
 import UserProfileModal from './UserProfileModal';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -30,7 +31,9 @@ function OwnerIcon({ isActive, alt }: { isActive: boolean; alt: string }) {
 }
 
 /** قائمة الخدمات (القائمة الجانبية) — module: null = الرئيسية (ظاهرة دائما) */
-const menuItems: { path: string; icon: typeof Store | null; labelKey: string; customIcon: string | null; module: string | null }[] = [
+type SidebarMenuIcon = LucideIcon | typeof TaxIcon;
+
+const menuItems: { path: string; icon: SidebarMenuIcon | null; labelKey: string; customIcon: string | null; module: string | null }[] = [
   { path: '/dashboard', icon: null, labelKey: 'nav.home', customIcon: null, module: null },
   { path: '/dashboard/branches', icon: Store, labelKey: 'nav.branches', customIcon: null, module: 'branches' },
   { path: '/dashboard/employers', icon: null, labelKey: 'nav.employers', customIcon: 'owner', module: 'employers' },

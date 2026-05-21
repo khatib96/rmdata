@@ -195,7 +195,7 @@ export default function AddPhoneModal({ onClose, onSuccess, editPhoneId, branche
         }
 
         // Save Documents
-        if (phoneId && window.electronAPI?.documentSave && pendingDocs.length > 0) {
+        if (phoneId && pendingDocs.length > 0 && window.electronAPI) {
           for (const doc of pendingDocs) {
             const parts = doc.sourcePath.replace(/\\/g, '/').split('/');
             const base = parts[parts.length - 1] || 'file';
@@ -228,7 +228,7 @@ export default function AddPhoneModal({ onClose, onSuccess, editPhoneId, branche
           module: 'phone',
           action: editPhoneId ? 'edit' : 'create',
           entityType: 'phone',
-          entityId: phoneId || editPhoneId,
+          entityId: phoneId ?? editPhoneId ?? undefined,
           details: logDetails,
           performedByUserId: user?.id,
           performedByUsername: user?.fullName || user?.username,

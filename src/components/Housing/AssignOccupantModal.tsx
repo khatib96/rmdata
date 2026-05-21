@@ -34,7 +34,8 @@ export default function AssignOccupantModal({
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!isOpen || !window.electronAPI?.dbQuery) return;
+    const api = window.electronAPI;
+    if (!isOpen || !api?.dbQuery) return;
     (async () => {
       let query = `
         SELECT e.id, e.name 
@@ -55,10 +56,10 @@ export default function AssignOccupantModal({
         params.push(emirate);
       }
       query += ` ORDER BY e.name`;
-      const res = await window.electronAPI.dbQuery(query, params);
+      const res = await api.dbQuery(query, params);
       setEmployees((res?.data ?? []) as { id: number; name: string }[]);
 
-      const empRes = await window.electronAPI.dbQuery(
+      const empRes = await api.dbQuery(
         `SELECT id, fullName as name, code FROM employers
          WHERE (status IS NULL OR status != 'archived')
            AND id NOT IN (

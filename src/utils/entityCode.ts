@@ -24,8 +24,8 @@ function parseCodeNumber(code: string, prefix: string): number {
  * Fetches last assigned via dbQuery and increments.
  */
 export async function generateNextCode(
-  prefix: 'RMB' | 'RME' | 'RMV' | 'RMH' | 'RMP',
-  table: 'branches' | 'employees' | 'vehicles' | 'housing_units' | 'phones',
+  prefix: 'RMB' | 'RME' | 'RMV' | 'RMH' | 'RMP' | 'RMO',
+  table: 'branches' | 'employees' | 'vehicles' | 'housing_units' | 'phones' | 'employers',
   dbQuery: (sql: string, params?: unknown[]) => Promise<{ success?: boolean; data?: { code?: string }[] }>
 ): Promise<string> {
   const col = 'code';

@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import type { LucideIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Home, Store, Users, Smartphone, Car, FolderOpen } from 'lucide-react';
@@ -26,7 +27,7 @@ function OwnerIconTile({ size = 28 }: { size?: number }) {
 type ServiceItem = {
   path: string;
   navKey: string;
-  icon?: typeof Store;
+  icon?: LucideIcon | typeof TaxIcon;
   customIcon?: 'homeMain' | 'owner';
 };
 

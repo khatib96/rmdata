@@ -22,7 +22,7 @@ import {
   Image as ImageIcon,
   File,
 } from 'lucide-react';
-import { VEHICLE_TYPES, OWNERSHIP_TYPES, INSURANCE_TYPES, AR_BRAND_TO_KEY, VEHICLE_BRAND_KEYS, type VehicleTypeValue } from '../../constants/vehicles';
+import { VEHICLE_TYPES, AR_BRAND_TO_KEY, VEHICLE_BRAND_KEYS, type VehicleTypeValue } from '../../constants/vehicles';
 import UpdateExpiryPopup, { type UpdateExpiryConfig, type DocumentLinkConfig } from '../shared/UpdateExpiryPopup';
 import TabsOrDropdown from '../shared/TabsOrDropdown';
 import HistoryTab from '../shared/HistoryTab';
@@ -31,7 +31,7 @@ import AddVehicleModal from './AddVehicleModal';
 import { logActivity } from '../../utils/activityLog';
 import { useAuthStore } from '../../store/authStore';
 import DocumentPreviewModal from '../shared/DocumentPreviewModal';
-import type { DocumentPreview } from '../../types/documents';
+import type { DocumentPreview, DocumentListItem } from '../../types/documents';
 import { getDocumentDisplayName } from '../../utils/documentHelpers';
 
 const VEHICLE_TYPE_ICONS: Record<VehicleTypeValue, typeof Car> = {
@@ -157,7 +157,7 @@ export default function VehicleProfile() {
   const vehicleId = parseInt(id ?? '', 10);
   const [vehicle, setVehicle] = useState<VehicleDetails | null>(null);
   const [customFields, setCustomFields] = useState<CustomFieldRow[]>([]);
-  const [documents, setDocuments] = useState<{ id: number; customName?: string; relativePath: string; section?: string }[]>([]);
+  const [documents, setDocuments] = useState<DocumentListItem[]>([]);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [branchName, setBranchName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);

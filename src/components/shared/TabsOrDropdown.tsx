@@ -29,7 +29,6 @@ export default function TabsOrDropdown({
   const list = filter ? tabs.filter(filter) : tabs;
 
   if (isMobile) {
-    const current = list.find((t) => t.id === activeTab) || list[0];
     return (
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-secondary-gray mb-4">
         <select

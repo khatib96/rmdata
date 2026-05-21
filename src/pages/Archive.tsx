@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { ElectronAPI } from '../types/electron.d';
 import type { DocumentExplorerFile, DocumentExplorerFolder, DocumentPreview } from '../types/documents';
 import {
   Users,
@@ -11,7 +9,6 @@ import {
   Home,
   Smartphone,
   Briefcase,
-  User,
   FolderOpen,
   Folder,
   FileText,
@@ -98,8 +95,6 @@ const ROOT_ICONS: Record<string, React.ComponentType<any>> = {
 
 export default function Archive() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
-  const api = window.electronAPI as ElectronAPI;
   const user = useAuthStore((s) => s.user);
   const [activeTab, setActiveTab] = useState<TabId>('employees');
   const [loading, setLoading] = useState(true);
@@ -180,39 +175,25 @@ export default function Archive() {
     if (!api?.dbQuery) return;
     setRestoringId(id);
     try {
-      let table = '';
       let entityType = '';
-      let entityLabel = '';
       if (tab === 'employees') {
-        table = 'employees';
         entityType = 'employee';
         await api.dbQuery('UPDATE employees SET status = ? WHERE id = ?', ['active', id]);
-        entityLabel = t('archive.entityLabel.employee', { label });
       } else if (tab === 'branches') {
-        table = 'branches';
         entityType = 'branch';
         await api.dbQuery('UPDATE branches SET status = ? WHERE id = ?', ['active', id]);
-        entityLabel = t('archive.entityLabel.branch', { label });
       } else if (tab === 'vehicles') {
-        table = 'vehicles';
         entityType = 'vehicle';
         await api.dbQuery('UPDATE vehicles SET status = ? WHERE id = ?', ['active', id]);
-        entityLabel = t('archive.entityLabel.vehicle', { label });
       } else if (tab === 'housing') {
-        table = 'housing_units';
         entityType = 'housing';
         await api.dbQuery('UPDATE housing_units SET status = ? WHERE id = ?', ['active', id]);
-        entityLabel = t('archive.entityLabel.housing', { label });
       } else if (tab === 'phones') {
-        table = 'phones';
         entityType = 'phone';
         await api.dbQuery('UPDATE phones SET status = ? WHERE id = ?', ['active', id]);
-        entityLabel = t('archive.entityLabel.phone', { label });
       } else if (tab === 'entities') {
-        table = 'entities';
         entityType = 'entity';
         await api.dbQuery('UPDATE entities SET status = ? WHERE id = ?', ['active', id]);
-        entityLabel = t('archive.entityLabel.entity', { label });
       }
       const details = `restored::${entityType}::${label}::${performerLabel}`;
       await logActivity({

@@ -10,7 +10,6 @@ import { PHONE_ICON_MAP } from '../Icons/PhoneIcons';
 import { getRecentDashboardActivities, type RecentActivityRow } from '../../services/dashboardService';
 import { dbQuery } from '../../services/dbClient';
 import { useExpiryUiSettings } from '../../hooks/useExpiryUiSettings';
-import { useIsMobile } from '../../hooks/useMediaQuery';
 import PrayerTimesWidget from '../Layout/PrayerTimesWidget';
 import { useAuthStore } from '../../store/authStore';
 import { useLanguageStore } from '../../store/languageStore';
@@ -114,7 +113,6 @@ const ACTION_COLORS: Record<string, string> = {
 
 export default function DashboardHome() {
   const { t } = useTranslation();
-  const isMobile = useIsMobile();
   const { expiryWarningDays, showYellowExpiry } = useExpiryUiSettings();
   const { user } = useAuthStore();
   const { dir } = useLanguageStore();
@@ -355,7 +353,7 @@ export default function DashboardHome() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
             <div dir="rtl" className="h-full min-h-0 flex">
               <div className="w-full min-h-full flex flex-col">
-                <PrayerTimesWidget variant={isMobile ? 'mobile' : 'desktop'} className="flex-1 min-h-full" />
+                <PrayerTimesWidget className="flex-1 min-h-full" />
               </div>
             </div>
 

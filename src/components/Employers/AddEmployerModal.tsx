@@ -55,8 +55,8 @@ export default function AddEmployerModal({ isOpen, onClose, onSuccess, editEmplo
   const [imageFilename, setImageFilename] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [branches, setBranches] = useState<Branch[]>([]);
-  const [linkedBranches, setLinkedBranches] = useState<{ branchId: number; role: string; ownershipPercent: string }[]>([]);
+  const [, setBranches] = useState<Branch[]>([]);
+  const [, setLinkedBranches] = useState<{ branchId: number; role: string; ownershipPercent: string }[]>([]);
   const [pendingDocs, setPendingDocs] = useState<{ sectionKey: string; sourcePath: string; customName: string }[]>([]);
   const [docModal, setDocModal] = useState<{ sectionKey: string; sectionLabel: string; sourcePath: string; customName: string } | null>(null);
   const [nationalities, setNationalities] = useState<string[]>([]);
@@ -69,8 +69,6 @@ export default function AddEmployerModal({ isOpen, onClose, onSuccess, editEmplo
     { step: 2, label: t('employers.stepPassport') },
     { step: 3, label: t('employers.stepIdResidency') },
   ], [t]);
-
-  const BRANCH_TYPES_MAIN = ['store', 'workshop', 'office'];
 
   // --- Load branches and nationalities on open ---
   useEffect(() => {
@@ -154,18 +152,6 @@ export default function AddEmployerModal({ isOpen, onClose, onSuccess, editEmplo
     const res = await window.electronAPI?.fileSelectDocument?.();
     if (res?.success && res?.filePath) setDocModal({ sectionKey, sectionLabel, sourcePath: res.filePath, customName: '' });
     else if (!res?.canceled) toast.error(res?.error || t('employers.fileSelectFailed'));
-  };
-
-  const toggleBranch = (branchId: number) => {
-    setLinkedBranches(prev => {
-      const exists = prev.find(b => b.branchId === branchId);
-      if (exists) return prev.filter(b => b.branchId !== branchId);
-      return [...prev, { branchId, role: 'owner', ownershipPercent: '' }];
-    });
-  };
-
-  const updateBranchLink = (branchId: number, field: 'role' | 'ownershipPercent', value: string) => {
-    setLinkedBranches(prev => prev.map(b => b.branchId === branchId ? { ...b, [field]: value } : b));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -309,10 +295,6 @@ export default function AddEmployerModal({ isOpen, onClose, onSuccess, editEmplo
 
   const inputClass = 'w-full px-4 py-2 border border-secondary-gray rounded-lg focus:ring-2 focus:ring-primary-gold bg-white';
   const labelClass = 'block text-sm font-medium text-dark-charcoal mb-1';
-
-  // Separate branches into main (store/workshop/office) and others
-  const mainBranches = branches.filter(b => BRANCH_TYPES_MAIN.includes(b.branchType || ''));
-  const otherBranches = branches.filter(b => !BRANCH_TYPES_MAIN.includes(b.branchType || ''));
 
   return (
     <FormModal

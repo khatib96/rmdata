@@ -58,10 +58,11 @@ export default function AddEntityModal({
   // Main branch dropdown: only branches not linked to other tax entities
   // (in edit mode, keep current entity-linked branches visible).
   useEffect(() => {
-    if (!isOpen || !window.electronAPI?.dbQuery) return;
+    const api = window.electronAPI;
+    if (!isOpen || !api?.dbQuery) return;
     const load = async () => {
       if (editEntityId) {
-        const res = await window.electronAPI.dbQuery(
+        const res = await api.dbQuery(
           `SELECT b.id, b.name
            FROM branches b
            WHERE (b.status IS NULL OR b.status != 'archived')
@@ -74,7 +75,7 @@ export default function AddEntityModal({
         );
         setMainBranchOptions(res?.data ?? []);
       } else {
-        const res = await window.electronAPI.dbQuery(
+        const res = await api.dbQuery(
           `SELECT b.id, b.name
            FROM branches b
            WHERE (b.status IS NULL OR b.status != 'archived')
@@ -91,10 +92,11 @@ export default function AddEntityModal({
   // show only branches not linked to other tax entities.
   // In edit mode, keep branches already linked to this entity selectable.
   useEffect(() => {
-    if (!isOpen || !window.electronAPI?.dbQuery) return;
+    const api = window.electronAPI;
+    if (!isOpen || !api?.dbQuery) return;
     const load = async () => {
       if (editEntityId) {
-        const res = await window.electronAPI.dbQuery(
+        const res = await api.dbQuery(
           `SELECT b.id, b.name
            FROM branches b
            WHERE (b.status IS NULL OR b.status != 'archived')
@@ -107,7 +109,7 @@ export default function AddEntityModal({
         );
         setLinkableBranches(res?.data ?? []);
       } else {
-        const res = await window.electronAPI.dbQuery(
+        const res = await api.dbQuery(
           `SELECT b.id, b.name
            FROM branches b
            WHERE (b.status IS NULL OR b.status != 'archived')
@@ -129,11 +131,12 @@ export default function AddEntityModal({
       setForm(INITIAL_FORM);
       return;
     }
-    if (!window.electronAPI?.dbQuery) return;
+    const api = window.electronAPI;
+    if (!api?.dbQuery) return;
     const load = async () => {
       const [entRes, linkRes] = await Promise.all([
-        window.electronAPI.dbQuery('SELECT * FROM entities WHERE id = ?', [editEntityId]),
-        window.electronAPI.dbQuery('SELECT branchId FROM tax_entity_branches WHERE entityId = ?', [editEntityId]),
+        api.dbQuery('SELECT * FROM entities WHERE id = ?', [editEntityId]),
+        api.dbQuery('SELECT branchId FROM tax_entity_branches WHERE entityId = ?', [editEntityId]),
       ]);
       const e = entRes?.data?.[0];
       if (e) {

@@ -63,17 +63,15 @@ RMDATA هو نظام إدارة داخلي لشركة الرداء الموحد.
 
 ## 4. نتائج الفحص الحالية
 
-آخر فحص تم:
+آخر فحص تم (2026-05-21):
 
-- `git status --short`: نظيف.
-- `npm run test:sqlite-mysql`: نجح.
+- `npm run typecheck`: نجح (0 أخطاء).
+- `npm run test:sqlite-mysql`: نجح (6/6).
 - `node --check server/dev-api-server.js`: نجح.
-- `node --check` لملفات السيرفر الأساسية: نجح.
-- `npm run typecheck`: فشل بأخطاء TypeScript متعددة.
 
-ملاحظة مهمة:
+ملاحظة:
 
-نجاح build لا يعني أن TypeScript سليم. يجب إصلاح `typecheck` قبل التوسع في V2.
+- المرحلة B (ثبات TypeScript) اكتملت من ناحية `typecheck` دون تعطيل `strict` أو `noUnusedLocals`.
 
 ## 5. أولويات العمل القادمة
 
@@ -91,11 +89,11 @@ RMDATA هو نظام إدارة داخلي لشركة الرداء الموحد.
 
 الأولوية 1:
 
-- إصلاح `npm run typecheck`.
-- البدء بأخطاء runtime المحتملة.
-- توحيد أنواع المستندات.
-- إصلاح `window.electronAPI` undefined cases.
-- عدم إطفاء `strict` أو `noUnusedLocals`.
+- [x] إصلاح `npm run typecheck` (2026-05-21).
+- [x] أخطاء runtime المحتملة في الملفات المستهدفة (مستندات، حالة موظف، أكواد RMO).
+- [x] توحيد `DocumentListItem` في PhoneProfile و VehicleProfile.
+- [x] ضبط `window.electronAPI` في عدة modals.
+- لم يُعطَّل `strict` أو `noUnusedLocals`.
 
 الأولوية 2:
 
@@ -345,6 +343,43 @@ RMDATA هو نظام إدارة داخلي لشركة الرداء الموحد.
 - رفع تحديث `AI_MEMORY.md` و`docs/v2-repair-and-development-roadmap.md`.
 - بدء المرحلة 1 لاحقاً: إصلاح `npm run typecheck`.
 
+### 2026-05-21 - المرحلة B: إصلاح TypeScript
+
+ما تم:
+
+- إصلاح 51 خطأ TypeScript على دفعات (runtime، electronAPI، مستندات، أيقونات، unused).
+- إضافة استيراد `listDocuments` / `deleteDocumentById` في `HousingProfile.tsx`.
+- توسيع `generateNextCode` لدعم بادئة `RMO` وجدول `employers`.
+- توحيد أنواع الأيقونات (`LucideIcon | typeof TaxIcon`) في Sidebar و Services.
+- تنظيف متغيرات/imports غير مستخدمة دون تغيير سلوك التطبيق.
+
+الملفات الرئيسية التي تغيرت:
+
+- `src/components/Housing/HousingProfile.tsx`
+- `src/components/Employees/UpdateStatusModal.tsx`
+- `src/components/Phones/PhoneProfile.tsx`, `AddPhoneModal.tsx`
+- `src/components/Vehicles/VehicleProfile.tsx`
+- `src/components/Entities/AddEntityModal.tsx`
+- `src/components/Employers/*`, `src/components/Layout/Sidebar.tsx`
+- `src/pages/Services.tsx`, `Archive.tsx`, `Documents.tsx`
+- `src/utils/entityCode.ts`, `src/services/companyMessagesResolver.ts`
+
+الأوامر التي شُغلت:
+
+- `npm run typecheck`
+- `npm run test:sqlite-mysql`
+- `node --check server/dev-api-server.js`
+
+نتائج التحقق:
+
+- `npm run typecheck`: نجح.
+- `npm run test:sqlite-mysql`: نجح (6 اختبارات).
+- `node --check server/dev-api-server.js`: نجح.
+
+الخطوة التالية:
+
+- المرحلة C: تشديد `db/query` قبل V2. تقسيم الملفات الكبيرة يأتي لاحقاً في المرحلة G من الخطة الرئيسية.
+
 ## 8. قالب تسجيل جلسة جديدة
 
 عند نهاية كل جلسة، أضف مدخلاً بهذا الشكل:
@@ -383,8 +418,8 @@ RMDATA هو نظام إدارة داخلي لشركة الرداء الموحد.
 
 ## 9. الحالة الحالية المختصرة
 
-الحالة: مشروع عامل على أساس v1.4.1 يحتاج إصلاح أساس قبل V2.
+الحالة: مشروع عامل على أساس v1.4.1؛ `typecheck` أخضر بعد المرحلة B.
 المرجع الحالي: `docs/RMDATA_MASTER_PLAN_2026.md`.
-المرحلة القادمة: المرحلة B - إصلاح TypeScript وثبات البناء.
-أهم خطر: `typecheck` يفشل و`db/query` ما زال Legacy واسع الاستخدام.
-أهم قرار: Node فقط للميزات الجديدة، وPHP Legacy، ولا بداية V2 قبل إصلاح الأساس.
+المرحلة القادمة: المرحلة C - تشديد `db/query` قبل V2.
+أهم خطر متبقٍ: `db/query` ما زال Legacy واسع الاستخدام.
+أهم قرار: Node فقط للميزات الجديدة، وPHP Legacy، ولا بداية V2 قبل تشديد `db/query` وتنظيم migrations والصلاحيات.

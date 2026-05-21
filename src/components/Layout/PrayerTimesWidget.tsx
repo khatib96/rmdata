@@ -19,12 +19,6 @@ type Coords = { lat: number; lng: number; city?: string };
 const MOSQUE_ICON_SRC = './icons/mosque.png';
 const ALADHAN_METHOD = 4;
 
-const DEFAULT_COORDS: Coords = {
-  // Abu Dhabi (fallback)
-  lat: 24.4539,
-  lng: 54.3773,
-};
-
 // Local UAE Emirates centers for offline detection (no API needed)
 const UAE_EMIRATES: Array<{ name: string; lat: number; lng: number }> = [
   { name: 'أبوظبي', lat: 24.4539, lng: 54.3773 },

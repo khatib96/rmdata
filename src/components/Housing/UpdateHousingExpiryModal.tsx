@@ -32,7 +32,7 @@ export default function UpdateHousingExpiryModal({
   onClose,
   onSaved,
   housingId,
-  housingName,
+  housingName: _housingName,
   currentExpiry,
   installments: initialInstallments,
 }: UpdateHousingExpiryModalProps) {

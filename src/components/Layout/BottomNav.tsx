@@ -5,7 +5,6 @@ import { Building2, Users, Home, LayoutGrid, Square } from 'lucide-react';
 import { usePermissions } from '../../hooks/usePermissions';
 
 const SAFE_BOTTOM = 'pb-[env(safe-area-inset-bottom)]';
-const MIN_TOUCH = 'min-w-[44px] min-h-[44px]';
 const BAR_BG = 'bg-[#A37A3F]';
 
 /** أيقونة الرئيسية: مربع وداخله نقطة (شكل الصفحة الرئيسية) — تُصدَّر للاستخدام في الشريط السفلي والقائمة الجانبية */

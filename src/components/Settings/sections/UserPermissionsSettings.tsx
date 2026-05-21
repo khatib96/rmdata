@@ -455,7 +455,6 @@ export default function UserPermissionsSettings() {
               const isCollapsed = collapsedGroups.has(group.key);
               const ids = group.actions.map((a) => permIdMap.get(`${activeModule}:${a}`)).filter(Boolean) as number[];
               const allGranted = ids.length > 0 && ids.every((id) => grantedIds.has(id));
-              const someGranted = ids.some((id) => grantedIds.has(id));
 
               return (
                 <div key={group.key} className="bg-white rounded-xl border border-secondary-gray/40 shadow-sm overflow-hidden">

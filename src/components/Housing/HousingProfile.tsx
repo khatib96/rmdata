@@ -28,6 +28,7 @@ import HistoryTab from '../shared/HistoryTab';
 import AddHousingModal from './AddHousingModal';
 import AssignOccupantModal from './AssignOccupantModal';
 import UpdateHousingExpiryModal from './UpdateHousingExpiryModal';
+import { listDocuments, deleteDocumentById } from '../../services/documentService';
 import { HOUSING_ICON_MAP } from '../Icons/HousingIcons';
 
 type TabId = 'basic' | 'contract' | 'occupants' | 'phones' | 'history' | 'documents';
