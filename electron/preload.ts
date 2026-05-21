@@ -43,6 +43,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('db:query', query, params),
   syncPermissionCatalog: () =>
     ipcRenderer.invoke('permissions:syncCatalog') as Promise<{ success: boolean; error?: string }>,
+  permissionsGetUserPermissions: (sessionToken: string | null | undefined, userId: number) =>
+    ipcRenderer.invoke('permissions:getUserPermissions', { sessionToken: sessionToken ?? undefined, userId }) as Promise<{ success: boolean; data?: { permissionId: number }[]; error?: string }>,
+  permissionsSetUserPermissions: (sessionToken: string | null | undefined, userId: number, permissionIds: number[]) =>
+    ipcRenderer.invoke('permissions:setUserPermissions', { sessionToken: sessionToken ?? undefined, userId, permissionIds }) as Promise<{ success: boolean; data?: { permissionIds: number[] }; error?: string }>,
   authLogin: (username: string, password: string) =>
     ipcRenderer.invoke('auth:login', username, password),
   devicePing: (token: string, gpsCoords: string | null, locationCity?: string | null) =>

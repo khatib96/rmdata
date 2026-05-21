@@ -5,12 +5,13 @@ import { runDbQueryInternal } from '../db-query-internal';
 import { sharedState } from '../shared-state';
 import {
   getDbConnectionConfig, setDbConnectionConfig, normalizeApiBaseUrl, executeRemoteDbQueryOnce,
-  storeRemotePassword, clearRemotePassword, clearRemoteApiSession
+  storeRemotePassword, clearRemotePassword, clearRemoteApiSession, remoteApiJson
 } from '../remote-api-utils';
 import { getLocalSetting, getAllLocalSettings, setLocalSetting, setLocalSettings } from '../local-settings-store';
 import { validateInsertSql } from '../../src/utils/sqlInsertValidator';
 import { syncPermissionCatalog } from '../database/permission-catalog-sync';
 import { assertDbQueryAllowed, inspectDbQuery } from '../sql-query-guard';
+import { resolveActorFromSessionToken } from '../device-session-utils';
 
 export function registerSettingsHandlers() {
   ipcMain.handle('settings:ping', async () => 'pong');
@@ -172,6 +173,92 @@ $w.Stop()
       const msg = e instanceof Error ? e.message : String(e);
       console.warn('permissions:syncCatalog failed:', msg);
       return { success: false as const, error: msg };
+    }
+  });
+
+  async function hasLocalSettingsPermission(sessionToken: string | null | undefined, action: 'sub.permissions' | 'edit'): Promise<boolean> {
+    const actor = await resolveActorFromSessionToken(sessionToken);
+    if (!actor) return false;
+    if (actor.roleId === 1) return true;
+    const res = await runDbQueryInternal(
+      `SELECT 1 FROM user_permissions up
+       INNER JOIN permissions p ON p.id = up.permissionId
+       WHERE up.userId = ? AND p.module = 'settings' AND p.action = ?
+       LIMIT 1`,
+      [actor.userId, action],
+    );
+    return !!res.success && Array.isArray(res.data) && res.data.length > 0;
+  }
+
+  ipcMain.handle('permissions:getUserPermissions', async (_event, payload: { sessionToken?: string | null; userId?: number }) => {
+    try {
+      const userId = Number(payload?.userId || 0);
+      if (!userId) return { success: false, error: 'INVALID_ID' };
+      const conf = getDbConnectionConfig();
+      if (conf.mode === 'remote') {
+        return await remoteApiJson<{ success: boolean; data?: { permissionId: number }[]; error?: string }>(
+          `/api/users/${userId}/permissions`,
+        );
+      }
+      const allowed = await hasLocalSettingsPermission(payload?.sessionToken, 'sub.permissions');
+      if (!allowed) return { success: false, error: 'FORBIDDEN' };
+      const res = await runDbQueryInternal(
+        'SELECT permissionId FROM user_permissions WHERE userId = ? ORDER BY permissionId',
+        [userId],
+      );
+      return { success: res.success, data: res.data || [], error: res.error };
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  });
+
+  ipcMain.handle('permissions:setUserPermissions', async (_event, payload: { sessionToken?: string | null; userId?: number; permissionIds?: unknown[] }) => {
+    try {
+      const userId = Number(payload?.userId || 0);
+      if (!userId) return { success: false, error: 'INVALID_ID' };
+      const rawPermissionIds = Array.isArray(payload?.permissionIds) ? payload.permissionIds : [];
+      const permissionIds = [...new Set(rawPermissionIds
+        .map((x) => Number(x))
+        .filter((x) => Number.isInteger(x) && x > 0))];
+      const conf = getDbConnectionConfig();
+      if (conf.mode === 'remote') {
+        return await remoteApiJson<{ success: boolean; data?: { permissionIds: number[] }; error?: string }>(
+          `/api/users/${userId}/permissions`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ permissionIds }),
+          },
+        );
+      }
+
+      const allowed = await hasLocalSettingsPermission(payload?.sessionToken, 'edit');
+      if (!allowed) return { success: false, error: 'FORBIDDEN' };
+      if (!AppDataSource.isInitialized) await initializeDatabase();
+      const target = await runDbQueryInternal('SELECT id, roleId FROM users WHERE id = ? LIMIT 1', [userId]);
+      const targetRow = target.data?.[0] as { roleId?: number } | undefined;
+      if (!target.success || !targetRow) return { success: false, error: 'NOT_FOUND' };
+      if (Number(targetRow.roleId) === 1) return { success: false, error: 'ADMIN_IMMUTABLE' };
+
+      const qr = AppDataSource.createQueryRunner();
+      await qr.connect();
+      await qr.startTransaction();
+      try {
+        await qr.query('DELETE FROM user_permissions WHERE userId = ?', [userId]);
+        for (const permissionId of permissionIds) {
+          await qr.query('INSERT OR IGNORE INTO user_permissions (userId, permissionId) VALUES (?, ?)', [userId, permissionId]);
+        }
+        await qr.query("UPDATE users SET permissionVersion = COALESCE(permissionVersion, 1) + 1, updatedAt = datetime('now') WHERE id = ?", [userId]);
+        await qr.commitTransaction();
+      } catch (err) {
+        await qr.rollbackTransaction();
+        throw err;
+      } finally {
+        await qr.release();
+      }
+      return { success: true, data: { permissionIds } };
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
   });
 

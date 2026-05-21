@@ -79,6 +79,15 @@ export interface ElectronAPI {
   dbQuery: (query: string, params?: any[]) => Promise<QueryResult<any>>;
   /** يملأ جدول permissions من الكتالوج (محلي أو بعيد) */
   syncPermissionCatalog?: () => Promise<{ success: boolean; error?: string }>;
+  permissionsGetUserPermissions?: (
+    sessionToken: string | null | undefined,
+    userId: number,
+  ) => Promise<{ success: boolean; data?: { permissionId: number }[]; error?: string }>;
+  permissionsSetUserPermissions?: (
+    sessionToken: string | null | undefined,
+    userId: number,
+    permissionIds: number[],
+  ) => Promise<{ success: boolean; data?: { permissionIds: number[] }; error?: string }>;
   authLogin?: (username: string, password: string) => Promise<AuthLoginResult>;
   devicePing?: (
     token: string,

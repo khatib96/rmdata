@@ -42,6 +42,20 @@ if (typeof window !== 'undefined' && !window.electronAPI?.dbQuery) {
     return { res, json };
   }
 
+  async function putJson(path: string, body: unknown) {
+    const url = `${apiBase}${path}`;
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const tok = getApiSessionToken();
+    if (tok) headers.Authorization = `Bearer ${tok}`;
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    return { res, json };
+  }
+
   async function getJson(path: string) {
     const url = `${apiBase}${path}`;
     const headers: Record<string, string> = {};
@@ -68,6 +82,8 @@ if (typeof window !== 'undefined' && !window.electronAPI?.dbQuery) {
     ElectronAPI,
     | 'dbQuery'
     | 'syncPermissionCatalog'
+    | 'permissionsGetUserPermissions'
+    | 'permissionsSetUserPermissions'
     | 'authLogin'
     | 'authChangeOwnPassword'
     | 'documentList'
@@ -77,6 +93,26 @@ if (typeof window !== 'undefined' && !window.electronAPI?.dbQuery) {
     | 'documentOpenExternal'
   > = {
     syncPermissionCatalog: async () => ({ success: true }),
+    permissionsGetUserPermissions: async (_sessionToken: string | null | undefined, userId: number) => {
+      try {
+        const { res, json } = await getJson(`/api/users/${userId}/permissions`);
+        if (!res.ok) return { success: false, error: json.error || res.statusText };
+        return { success: json.success !== false, data: json.data || [], error: json.error };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { success: false, error: msg };
+      }
+    },
+    permissionsSetUserPermissions: async (_sessionToken: string | null | undefined, userId: number, permissionIds: number[]) => {
+      try {
+        const { res, json } = await putJson(`/api/users/${userId}/permissions`, { permissionIds });
+        if (!res.ok) return { success: false, error: json.error || res.statusText };
+        return { success: json.success !== false, data: json.data, error: json.error };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { success: false, error: msg };
+      }
+    },
     dbQuery: async (query: string, params?: unknown[]) => {
       try {
         const { res, json } = await postJson('/api/db/query', { query, params: params || [] });

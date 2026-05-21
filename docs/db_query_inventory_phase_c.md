@@ -96,6 +96,15 @@
 - سجلات الحالة والتاريخ.
 - activity logs عبر endpoint داخلي أو service.
 
+## 7. ما تم تحويله إلى API صريح
+
+- حفظ صلاحيات المستخدمين في `UserPermissionsSettings`:
+  - Node: `GET /api/users/:id/permissions`
+  - Node: `PUT /api/users/:id/permissions`
+  - Electron IPC: `permissions:getUserPermissions`
+  - Electron IPC: `permissions:setUserPermissions`
+  - الواجهة تستخدم `permissionsSetUserPermissions` بدلاً من `DELETE/INSERT user_permissions` المباشر.
+
 ## 6. قواعد إضافة أي جدول جديد
 
 - لا يضاف جدول جديد إلى allowlist إلا إذا كان جزءاً من Legacy واضح ومؤقت.

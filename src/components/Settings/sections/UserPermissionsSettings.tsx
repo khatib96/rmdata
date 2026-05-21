@@ -200,6 +200,7 @@ const ACTION_LABELS: Record<string, string> = {
 export default function UserPermissionsSettings() {
   const { t } = useTranslation();
   const authUser = useAuthStore((s) => s.user);
+  const sessionToken = useAuthStore((s) => s.sessionToken);
   const isAdmin = authUser?.roleId === 1;
 
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -253,18 +254,24 @@ export default function UserPermissionsSettings() {
 
   // ─── Load selected user's permissions ────────────────────────
   useEffect(() => {
-    if (selectedUserId == null || !window.electronAPI?.dbQuery) return;
+    if (selectedUserId == null) return;
+    const api = window.electronAPI;
+    if (!api?.permissionsGetUserPermissions && !api?.dbQuery) return;
     setLoading(true);
 
-    window.electronAPI.dbQuery(
-      'SELECT permissionId FROM user_permissions WHERE userId = ?',
-      [selectedUserId]
-    ).then((res) => {
+    const loadPromise = api.permissionsGetUserPermissions
+      ? api.permissionsGetUserPermissions(sessionToken, selectedUserId)
+      : api.dbQuery(
+          'SELECT permissionId FROM user_permissions WHERE userId = ?',
+          [selectedUserId]
+        );
+
+    loadPromise.then((res) => {
       const ids = new Set(((res?.data ?? []) as { permissionId: number }[]).map((x) => x.permissionId));
       setGrantedIds(ids);
       setInitialGrantedIds(new Set(ids));
     }).finally(() => setLoading(false));
-  }, [selectedUserId]);
+  }, [selectedUserId, sessionToken]);
 
   // ─── Toggle single permission ────────────────────────────────
   const toggle = useCallback((permId: number) => {
@@ -319,18 +326,23 @@ export default function UserPermissionsSettings() {
 
   // ─── Save ────────────────────────────────────────────────────
   const handleSave = async () => {
-    if (!selectedUserId || !window.electronAPI?.dbQuery) return;
+    if (!selectedUserId) return;
+    const api = window.electronAPI;
+    if (!api?.permissionsSetUserPermissions && !api?.dbQuery) return;
     setSaving(true);
     try {
-      // Delete all existing user_permissions for this user
-      await window.electronAPI.dbQuery('DELETE FROM user_permissions WHERE userId = ?', [selectedUserId]);
-
-      // Insert new grants
-      for (const id of grantedIds) {
-        await window.electronAPI.dbQuery(
-          'INSERT OR IGNORE INTO user_permissions (userId, permissionId) VALUES (?, ?)',
-          [selectedUserId, id]
-        );
+      if (api.permissionsSetUserPermissions) {
+        const res = await api.permissionsSetUserPermissions(sessionToken, selectedUserId, Array.from(grantedIds));
+        if (!res?.success) throw new Error(res?.error || 'PERMISSIONS_SAVE_FAILED');
+      } else {
+        // Legacy fallback for old preload builds only. New builds use permissionsSetUserPermissions.
+        await api.dbQuery('DELETE FROM user_permissions WHERE userId = ?', [selectedUserId]);
+        for (const id of grantedIds) {
+          await api.dbQuery(
+            'INSERT OR IGNORE INTO user_permissions (userId, permissionId) VALUES (?, ?)',
+            [selectedUserId, id]
+          );
+        }
       }
 
       setInitialGrantedIds(new Set(grantedIds));

@@ -2055,6 +2055,68 @@ app.get('/api/users', requireAuth, requirePermission('users', 'view'), async (re
   }
 });
 
+app.get('/api/users/:id/permissions', requireAuth, requirePermission('settings', 'sub.permissions'), async (req, res) => {
+  const id = safeInt(req.params.id);
+  if (!id) return res.status(400).json({ success: false, error: 'INVALID_ID' });
+  try {
+    const rows = await dbAll(
+      `SELECT up.permissionId
+       FROM user_permissions up
+       INNER JOIN users u ON u.id = up.userId
+       WHERE up.userId = ?
+       ORDER BY up.permissionId`,
+      [id]
+    );
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+app.put('/api/users/:id/permissions', requireAuth, requirePermission('settings', 'edit'), async (req, res) => {
+  const id = safeInt(req.params.id);
+  if (!id) return res.status(400).json({ success: false, error: 'INVALID_ID' });
+  const rawIds = Array.isArray(req.body?.permissionIds) ? req.body.permissionIds : [];
+  const permissionIds = [...new Set(rawIds.map((x) => Number(x)).filter((x) => Number.isInteger(x) && x > 0))];
+
+  try {
+    const targetRows = await dbAll('SELECT id, roleId FROM users WHERE id = ? LIMIT 1', [id]);
+    if (!targetRows.length) return res.status(404).json({ success: false, error: 'NOT_FOUND' });
+    if (Number(targetRows[0].roleId) === 1) return res.status(400).json({ success: false, error: 'ADMIN_IMMUTABLE' });
+
+    let validIds = [];
+    if (permissionIds.length > 0) {
+      const placeholders = permissionIds.map(() => '?').join(',');
+      const rows = await dbAll(`SELECT id FROM permissions WHERE id IN (${placeholders})`, permissionIds);
+      validIds = rows.map((r) => Number(r.id)).filter((x) => Number.isInteger(x) && x > 0);
+    }
+
+    await withTransaction(async (tx) => {
+      await tx.run('DELETE FROM user_permissions WHERE userId = ?', [id]);
+      for (const permissionId of validIds) {
+        await tx.run('INSERT IGNORE INTO user_permissions (userId, permissionId) VALUES (?, ?)', [id, permissionId]);
+      }
+      await tx.run('UPDATE users SET permissionVersion = permissionVersion + 1, updatedAt = NOW() WHERE id = ?', [id]);
+    });
+    clearAllPermissionCache();
+
+    try {
+      await dbRun('INSERT INTO permission_audit_logs (actorUserId, action, details) VALUES (?, ?, ?)', [
+        req.authSession.userId,
+        'USER_PERMISSIONS_REPLACE',
+        JSON.stringify({ userId: id, permissionCount: validIds.length }),
+      ]);
+    } catch {
+      /* optional audit table */
+    }
+
+    broadcastDataChange('updated', 'user_permissions', id);
+    res.json({ success: true, data: { permissionIds: validIds } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
 app.get('/api/users/:id', requireAuth, requirePermission('users', 'view'), async (req, res) => {
   const id = safeInt(req.params.id);
   if (!id) return res.status(400).json({ success: false, error: 'INVALID_ID' });
@@ -2262,4 +2324,3 @@ httpServer.listen(PORT, '0.0.0.0', () => {
     .then(() => console.log('  Permission catalog seed: OK'))
     .catch((e) => console.error('Permission catalog seed error:', e instanceof Error ? e.message : String(e)));
 });
-

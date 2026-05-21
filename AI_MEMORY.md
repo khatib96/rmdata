@@ -399,6 +399,23 @@ RMDATA هو نظام إدارة داخلي لشركة الرداء الموحد.
 
 - تحويل العمليات الأعلى خطراً من `db/query` إلى REST endpoints، بدءاً من الصلاحيات/المستخدمين أو الأرشفة والحذف.
 
+### 2026-05-21 - المرحلة C: تحويل حفظ صلاحيات المستخدم إلى API
+
+ما تم:
+
+- إضافة Node endpoints:
+  - `GET /api/users/:id/permissions`
+  - `PUT /api/users/:id/permissions`
+- إضافة Electron IPC:
+  - `permissions:getUserPermissions`
+  - `permissions:setUserPermissions`
+- تعديل `UserPermissionsSettings` لاستخدام API/IPC الجديد بدلاً من حذف/إدخال `user_permissions` مباشرة.
+- تحديث `docs/db_query_inventory_phase_c.md`.
+
+الخطوة التالية:
+
+- تحويل مرشح خطر آخر من `db/query` إلى REST/IPC، مثل المستخدمين أو الأرشفة والحذف.
+
 ## 8. قالب تسجيل جلسة جديدة
 
 عند نهاية كل جلسة، أضف مدخلاً بهذا الشكل:
