@@ -10,6 +10,7 @@ import {
 import { getLocalSetting, getAllLocalSettings, setLocalSetting, setLocalSettings } from '../local-settings-store';
 import { validateInsertSql } from '../../src/utils/sqlInsertValidator';
 import { syncPermissionCatalog } from '../database/permission-catalog-sync';
+import { assertDbQueryAllowed, inspectDbQuery } from '../sql-query-guard';
 
 export function registerSettingsHandlers() {
   ipcMain.handle('settings:ping', async () => 'pong');
@@ -176,7 +177,12 @@ $w.Stop()
 
   ipcMain.handle('db:query', async (_event, query: string, params?: unknown[], internalToken?: string) => {
     try {
+      assertDbQueryAllowed(query);
       validateInsertSql(query, params);
+      const inspected = inspectDbQuery(query);
+      if (inspected.isMutation) {
+        console.warn(`[legacy-db-query] local ipc mutation: ${inspected.operation} ${inspected.table || 'unknown'}`);
+      }
       const conf = getDbConnectionConfig();
       if (conf.mode === 'remote') {
         const res = await executeRemoteDbQueryOnce(query, params);

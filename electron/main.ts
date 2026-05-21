@@ -10,6 +10,7 @@ import { registerNotificationHandlers, runCheckAndGetUnreadCount, isDesktopNotif
 import { isPathInsideDirectory } from './path-security';
 import { setDbQueryInternalImpl, DbQueryInternalResult } from './db-query-internal';
 import { validateInsertSql } from '../src/utils/sqlInsertValidator';
+import { assertDbQueryAllowed, inspectDbQuery } from './sql-query-guard';
 
 // Extracted Modules
 import { sharedState, setMainWindow, setSplashWindow, setTray, setLastUnreadCount, setUpdateDownloaded, setCurrentSessionToken } from './shared-state';
@@ -134,7 +135,12 @@ function createWindow() {
 // Set up DbQueryInternalImpl
 setDbQueryInternalImpl(async (query: string, params?: unknown[]): Promise<DbQueryInternalResult> => {
   try {
+    assertDbQueryAllowed(query);
     validateInsertSql(query, params);
+    const inspected = inspectDbQuery(query);
+    if (inspected.isMutation) {
+      console.warn(`[legacy-db-query] internal mutation: ${inspected.operation} ${inspected.table || 'unknown'}`);
+    }
     const conf = getDbConnectionConfig();
     if (conf.mode === 'remote') {
       const res = await executeRemoteDbQueryOnce(query, params);

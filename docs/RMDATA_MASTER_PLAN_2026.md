@@ -20,6 +20,7 @@
 | `docs/v2-repair-and-development-roadmap.md` | مرجع إصلاح قريب من الواقع، لكنه يحتاج دمج مع حالة مايو |
 | `docs/permissions_rearchitecture_review.md` | مرجع تصميم الصلاحيات المتقدم |
 | `docs/permissions_phaseA_checklist.md` | مرجع ما تم وما لم يتم في مرحلة الصلاحيات |
+| `docs/db_query_inventory_phase_c.md` | جرد مرحلة C لمسارات `db/query` والجداول المؤقتة |
 | `docs/CURRENT_STATE_v1.4.1.md` | مرجع تشغيل VPS والحالة المنشورة |
 | `docs/SYSTEM_EVOLUTION_PLAN.md` | أرشيف أفكار قديم |
 
@@ -156,16 +157,16 @@ PHP Gateway
 
 المهام:
 
-- [ ] توحيد حارس SQL بين:
+- [x] توحيد حارس SQL بين:
   - Node `/api/db/query`
   - Electron local `db:query`
   - أي utility داخلي يستخدم SQL خام
-- [ ] جعل `db/query` للقراءة فقط افتراضياً.
-- [ ] منع mutations عبر `db/query` إلا بقائمة صريحة مؤقتة ومحمية.
-- [ ] إضافة logging لكل mutation يمر من `db/query`.
-- [ ] جرد كل استخدامات `window.electronAPI.dbQuery` في الواجهة.
+- [x] جعل `db/query` للقراءة فقط افتراضياً.
+- [x] منع mutations عبر `db/query` إلا بقائمة صريحة مؤقتة ومحمية.
+- [x] إضافة logging لكل mutation يمر من `db/query`.
+- [x] جرد كل استخدامات `window.electronAPI.dbQuery` في الواجهة.
 - [ ] تحويل أكثر العمليات خطورة إلى REST endpoints.
-- [ ] وضع تحذير واضح في الكود أن `db/query` Legacy.
+- [x] وضع تحذير واضح في الكود أن `db/query` Legacy.
 
 سياسة مؤقتة مقترحة:
 
@@ -659,7 +660,7 @@ Push:
 
 - [x] تحديث المراجع واعتماد هذه الوثيقة.
 - [x] إصلاح `npm run typecheck`.
-- [ ] تشديد `db/query`.
+- [ ] تشديد `db/query` (قيد التنفيذ: الحارس والجرد والـ logging أنجزت؛ تحويل REST لم يبدأ).
 - [ ] جعل Node هو مسار التطوير الوحيد وترك PHP.
 - [ ] إكمال الصلاحيات والأمان.
 - [ ] إنشاء migrations مرقمة.

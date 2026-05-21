@@ -46,12 +46,22 @@ function assertDbQueryAllowed(query) {
   if (!q) throw new Error('Empty query');
   if (/\b(ATTACH|DETACH|VACUUM|REINDEX)\b/i.test(q)) throw new Error('This SQL operation is not allowed');
   if (/\bPRAGMA\b/i.test(q)) throw new Error('PRAGMA is not allowed');
+  const op = getSqlOperation(q);
+  if (!['SELECT', 'WITH', 'INSERT', 'UPDATE', 'DELETE', 'REPLACE'].includes(op)) {
+    throw new Error('Only SELECT/WITH and legacy allowlisted mutations are allowed');
+  }
+}
+
+function getSqlOperation(query) {
+  const first = String(query || '').trim().split(/\s+/, 1)[0]?.toUpperCase();
+  if (['SELECT', 'WITH', 'INSERT', 'UPDATE', 'DELETE', 'REPLACE'].includes(first)) return first;
+  return 'OTHER';
 }
 
 function extractPrimaryMutationTable(mysqlQuery, trimmedUpper) {
   const raw = String(mysqlQuery || '').replace(/`([^`]+)`/g, '$1');
   let m;
-  if (trimmedUpper.startsWith('INSERT')) {
+  if (trimmedUpper.startsWith('INSERT') || trimmedUpper.startsWith('REPLACE')) {
     m = /\bINTO\s+([A-Za-z0-9_]+)/i.exec(raw);
     return m ? m[1] : null;
   }
@@ -70,6 +80,73 @@ function forbiddenError() {
   const err = new Error('FORBIDDEN');
   err.code = 'FORBIDDEN';
   return err;
+}
+
+const LEGACY_DB_QUERY_MUTATION_POLICIES = {
+  activity_logs: { authenticated: true },
+  connected_devices: { authenticated: true },
+
+  branches: {
+    INSERT: [['branches', 'create']],
+    UPDATE: [['branches', 'edit'], ['branches', 'archive']],
+    DELETE: [['branches', 'delete']],
+  },
+  branch_licenses: { INSERT: [['branches', 'create'], ['branches', 'edit']], UPDATE: [['branches', 'edit']], DELETE: [['branches', 'delete'], ['branches', 'edit']] },
+  branch_leases: { INSERT: [['branches', 'create'], ['branches', 'edit']], UPDATE: [['branches', 'edit']], DELETE: [['branches', 'delete'], ['branches', 'edit']] },
+  branch_establishments: { INSERT: [['branches', 'create'], ['branches', 'edit']], UPDATE: [['branches', 'edit']], DELETE: [['branches', 'delete'], ['branches', 'edit']] },
+  branch_custom_fields: { INSERT: [['branches', 'create'], ['branches', 'edit']], UPDATE: [['branches', 'edit']], DELETE: [['branches', 'delete'], ['branches', 'edit']] },
+  lease_installments: { INSERT: [['branches', 'create'], ['branches', 'edit']], UPDATE: [['branches', 'edit']], DELETE: [['branches', 'delete'], ['branches', 'edit']] },
+
+  employees: {
+    INSERT: [['employees', 'create']],
+    UPDATE: [['employees', 'edit']],
+    DELETE: [['employees', 'delete']],
+  },
+  status_history: { INSERT: [['employees', 'edit'], ['employees', 'action.changeStatus']], UPDATE: [['employees', 'edit'], ['employees', 'action.changeStatus']], DELETE: [['employees', 'delete'], ['employees', 'edit']] },
+  employee_status_history: { INSERT: [['employees', 'edit'], ['employees', 'action.changeStatus']], UPDATE: [['employees', 'edit'], ['employees', 'action.changeStatus']], DELETE: [['employees', 'delete'], ['employees', 'edit']] },
+
+  employers: { INSERT: [['employers', 'create']], UPDATE: [['employers', 'edit']], DELETE: [['employers', 'delete']] },
+  branch_employers: { INSERT: [['employers', 'edit'], ['branches', 'edit']], UPDATE: [['employers', 'edit'], ['branches', 'edit']], DELETE: [['employers', 'edit'], ['branches', 'edit']] },
+
+  vehicles: { INSERT: [['vehicles', 'create']], UPDATE: [['vehicles', 'edit']], DELETE: [['vehicles', 'delete']] },
+  vehicle_custom_fields: { INSERT: [['vehicles', 'create'], ['vehicles', 'edit']], UPDATE: [['vehicles', 'edit']], DELETE: [['vehicles', 'delete'], ['vehicles', 'edit']] },
+
+  phones: { INSERT: [['phones', 'create']], UPDATE: [['phones', 'edit']], DELETE: [['phones', 'delete']] },
+
+  housing_units: { INSERT: [['housing', 'create']], UPDATE: [['housing', 'edit']], DELETE: [['housing', 'delete']] },
+  housing_installments: { INSERT: [['housing', 'create'], ['housing', 'edit']], UPDATE: [['housing', 'edit']], DELETE: [['housing', 'delete'], ['housing', 'edit']] },
+  housing_occupants: { INSERT: [['housing', 'edit']], UPDATE: [['housing', 'edit']], DELETE: [['housing', 'edit'], ['housing', 'delete']] },
+  housing_custom_fields: { INSERT: [['housing', 'create'], ['housing', 'edit']], UPDATE: [['housing', 'edit']], DELETE: [['housing', 'delete'], ['housing', 'edit']] },
+
+  entities: { INSERT: [['entities', 'create']], UPDATE: [['entities', 'edit']], DELETE: [['entities', 'delete']] },
+  tax_payments: { INSERT: [['settings', 'edit'], ['entities', 'edit']], UPDATE: [['settings', 'edit'], ['entities', 'edit']], DELETE: [['settings', 'edit'], ['entities', 'edit']] },
+  tax_entity_branches: { INSERT: [['settings', 'edit'], ['entities', 'edit']], UPDATE: [['settings', 'edit'], ['entities', 'edit']], DELETE: [['settings', 'edit'], ['entities', 'edit'], ['branches', 'edit']] },
+
+  documents: { INSERT: [['documents', 'create']], UPDATE: [['documents', 'edit'], ['documents', 'delete']], DELETE: [['documents', 'delete']] },
+  notifications: {
+    INSERT: [['settings', 'edit'], ['logs', 'view'], ['employees', 'edit'], ['branches', 'edit'], ['vehicles', 'edit'], ['phones', 'edit'], ['housing', 'edit'], ['employers', 'edit'], ['entities', 'edit']],
+    UPDATE: [['settings', 'edit'], ['logs', 'view'], ['employees', 'edit'], ['branches', 'edit'], ['vehicles', 'edit'], ['phones', 'edit'], ['housing', 'edit'], ['employers', 'edit'], ['entities', 'edit']],
+    DELETE: [['settings', 'edit'], ['logs', 'view'], ['employees', 'edit'], ['branches', 'edit'], ['vehicles', 'edit'], ['phones', 'edit'], ['housing', 'edit'], ['employers', 'edit'], ['entities', 'edit']],
+  },
+  settings: { INSERT: [['settings', 'edit']], UPDATE: [['settings', 'edit']], DELETE: [['settings', 'delete'], ['settings', 'edit']] },
+
+  users: { INSERT: [['settings', 'users.create'], ['users', 'create']], UPDATE: [['settings', 'users.edit'], ['users', 'edit']], DELETE: [['settings', 'users.delete'], ['users', 'delete']] },
+  permissions: { adminOnly: true },
+  user_permissions: { INSERT: [['settings', 'edit']], UPDATE: [['settings', 'edit']], DELETE: [['settings', 'edit']] },
+  user_permission_overrides: { INSERT: [['settings', 'edit']], UPDATE: [['settings', 'edit']], DELETE: [['settings', 'edit']] },
+  role_permissions: { INSERT: [['settings', 'edit']], UPDATE: [['settings', 'edit']], DELETE: [['settings', 'edit']] },
+};
+
+async function hasAnyPermission(userId, candidates) {
+  for (const [module, action] of candidates || []) {
+    if (await hasPermission(userId, module, action)) return true;
+  }
+  return false;
+}
+
+function logLegacyDbQueryMutation(userId, operation, table, sql) {
+  const compactSql = String(sql || '').replace(/\s+/g, ' ').trim().slice(0, 240);
+  console.warn(`[legacy-db-query] mutation user=${Number(userId) || 'unknown'} operation=${operation} table=${table || 'unknown'} sql="${compactSql}"`);
 }
 
 /** يطابق العميل: branches.edit + (manage | action.uploadBranchDocuments) */
@@ -95,36 +172,20 @@ async function assertDbQueryMutationAuthorized(trimmedUpper, mysqlQuery, userId)
   if (!uid) throw forbiddenError();
 
   const table = extractPrimaryMutationTable(mysqlQuery, trimmedUpper);
-  if (!table) return;
+  if (!table) throw forbiddenError();
   const t = String(table).toLowerCase();
-
-  if (t === 'employees') {
-    if (trimmedUpper.startsWith('INSERT')) {
-      if (!(await hasPermission(uid, 'employees', 'create'))) throw forbiddenError();
-    } else if (trimmedUpper.startsWith('UPDATE')) {
-      if (!(await hasPermission(uid, 'employees', 'edit'))) throw forbiddenError();
-    } else if (trimmedUpper.startsWith('DELETE')) {
-      if (!(await hasPermission(uid, 'employees', 'delete'))) throw forbiddenError();
-    }
-    return;
-  }
-
-  if (t === 'role_permissions' || t === 'user_permissions' || t === 'user_permission_overrides') {
-    const ok =
-      (await hasPermission(uid, 'settings', 'manage')) || (await hasPermission(uid, 'settings', 'edit'));
-    if (!ok) throw forbiddenError();
-    return;
-  }
-
-  if (t === 'permissions') {
+  const operation = getSqlOperation(trimmedUpper);
+  const policy = LEGACY_DB_QUERY_MUTATION_POLICIES[t];
+  if (!policy) throw forbiddenError();
+  if (policy.authenticated) return;
+  if (policy.adminOnly) {
     const { isAdmin } = await resolveEffectivePermissions(uid);
     if (!isAdmin) throw forbiddenError();
     return;
   }
 
-  if (t === 'users') {
-    if (!(await hasPermission(uid, 'users', 'edit'))) throw forbiddenError();
-  }
+  const candidates = policy[operation] || [];
+  if (!candidates.length || !(await hasAnyPermission(uid, candidates))) throw forbiddenError();
 }
 
 async function tryLogPermissionAudit(actorUserId, mysqlQuery, trimmedUpperSql) {
@@ -2201,5 +2262,4 @@ httpServer.listen(PORT, '0.0.0.0', () => {
     .then(() => console.log('  Permission catalog seed: OK'))
     .catch((e) => console.error('Permission catalog seed error:', e instanceof Error ? e.message : String(e)));
 });
-
 
