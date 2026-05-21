@@ -124,13 +124,19 @@ export default function EntityProfile() {
   }, [entityId]);
 
   const user = useAuthStore((s) => s.user);
+  const sessionToken = useAuthStore((s) => s.sessionToken);
   const performerLabel = user
     ? `${user.fullName || user.username}${user.entityId != null ? ` (${user.entityId})` : ''}`
     : t('entities.system');
 
   const handleArchive = async () => {
     try {
-      await dbQuery('UPDATE entities SET status = ? WHERE id = ?', ['archived', entityId], { skipCache: true });
+      if (window.electronAPI?.archiveRecord) {
+        const res = await window.electronAPI.archiveRecord(sessionToken, 'entities', entityId);
+        if (!res?.success) throw new Error(res?.error || 'ARCHIVE_FAILED');
+      } else {
+        await dbQuery('UPDATE entities SET status = ? WHERE id = ?', ['archived', entityId], { skipCache: true });
+      }
       await dbQuery('DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['entity', entityId], { skipCache: true });
       const label = entity?.entityNickname || entity?.name || `كيان ${entityId}`;
       await logActivity({

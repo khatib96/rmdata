@@ -63,6 +63,14 @@ export type UpdateStatus =
   | { stage: 'downloaded'; version: string }
   | { stage: 'error'; message: string };
 
+export type ArchiveRestoreResource =
+  | 'employees'
+  | 'branches'
+  | 'vehicles'
+  | 'housing'
+  | 'phones'
+  | 'entities';
+
 export interface ElectronAPI {
   /** Phase 0: verify IPC/preload is available */
   ping?: () => Promise<string>;
@@ -88,6 +96,16 @@ export interface ElectronAPI {
     userId: number,
     permissionIds: number[],
   ) => Promise<{ success: boolean; data?: { permissionIds: number[] }; error?: string }>;
+  archiveRestore?: (
+    sessionToken: string | null | undefined,
+    resource: ArchiveRestoreResource,
+    id: number,
+  ) => Promise<{ success: boolean; data?: { entityType: string }; error?: string }>;
+  archiveRecord?: (
+    sessionToken: string | null | undefined,
+    resource: ArchiveRestoreResource,
+    id: number,
+  ) => Promise<{ success: boolean; data?: { entityType: string }; error?: string }>;
   authLogin?: (username: string, password: string) => Promise<AuthLoginResult>;
   devicePing?: (
     token: string,

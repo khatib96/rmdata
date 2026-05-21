@@ -3,7 +3,7 @@
  * نوفّر استدعاء dbQuery عبر خادم API محلي أو عبر بوابة PHP البعيدة عند استخدام Hostinger.
  */
 import { API_SESSION_TOKEN_KEY } from './apiSessionToken';
-import type { ElectronAPI } from '../types/electron';
+import type { ArchiveRestoreResource, ElectronAPI } from '../types/electron';
 
 if (typeof window !== 'undefined' && !window.electronAPI?.dbQuery) {
   const rawBase = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE) || '';
@@ -84,6 +84,8 @@ if (typeof window !== 'undefined' && !window.electronAPI?.dbQuery) {
     | 'syncPermissionCatalog'
     | 'permissionsGetUserPermissions'
     | 'permissionsSetUserPermissions'
+    | 'archiveRecord'
+    | 'archiveRestore'
     | 'authLogin'
     | 'authChangeOwnPassword'
     | 'documentList'
@@ -106,6 +108,26 @@ if (typeof window !== 'undefined' && !window.electronAPI?.dbQuery) {
     permissionsSetUserPermissions: async (_sessionToken: string | null | undefined, userId: number, permissionIds: number[]) => {
       try {
         const { res, json } = await putJson(`/api/users/${userId}/permissions`, { permissionIds });
+        if (!res.ok) return { success: false, error: json.error || res.statusText };
+        return { success: json.success !== false, data: json.data, error: json.error };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { success: false, error: msg };
+      }
+    },
+    archiveRestore: async (_sessionToken: string | null | undefined, resource: ArchiveRestoreResource, id: number) => {
+      try {
+        const { res, json } = await postJson(`/api/${resource}/${id}/restore`, {});
+        if (!res.ok) return { success: false, error: json.error || res.statusText };
+        return { success: json.success !== false, data: json.data, error: json.error };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { success: false, error: msg };
+      }
+    },
+    archiveRecord: async (_sessionToken: string | null | undefined, resource: ArchiveRestoreResource, id: number) => {
+      try {
+        const { res, json } = await postJson(`/api/${resource}/${id}/archive`, {});
         if (!res.ok) return { success: false, error: json.error || res.statusText };
         return { success: json.success !== false, data: json.data, error: json.error };
       } catch (e) {

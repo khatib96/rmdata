@@ -220,12 +220,18 @@ export default function VehicleProfile() {
   };
 
   const user = useAuthStore((s) => s.user);
+  const sessionToken = useAuthStore((s) => s.sessionToken);
   const performerLabel = user ? `${user.fullName || user.username}${user.entityId != null ? ` (${user.entityId})` : ''}` : t('vehicles.system');
 
   const handleArchive = async () => {
-    if (!window.electronAPI?.dbQuery) return;
+    if (!window.electronAPI?.archiveRecord && !window.electronAPI?.dbQuery) return;
     try {
-      await window.electronAPI.dbQuery('UPDATE vehicles SET status = ? WHERE id = ?', ['archived', vehicleId]);
+      if (window.electronAPI.archiveRecord) {
+        const res = await window.electronAPI.archiveRecord(sessionToken, 'vehicles', vehicleId);
+        if (!res?.success) throw new Error(res?.error || 'ARCHIVE_FAILED');
+      } else if (window.electronAPI.dbQuery) {
+        await window.electronAPI.dbQuery('UPDATE vehicles SET status = ? WHERE id = ?', ['archived', vehicleId]);
+      }
       const label = vehicle?.plateNumber || vehicle?.code || `مركبة ${vehicleId}`;
       await logActivity({
         module: 'archive',

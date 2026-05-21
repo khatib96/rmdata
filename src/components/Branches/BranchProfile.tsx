@@ -537,6 +537,7 @@ export default function BranchProfile() {
   };
 
   const user = useAuthStore((s) => s.user);
+  const sessionToken = useAuthStore((s) => s.sessionToken);
   const performerLabel = user ? `${user.fullName || user.username}${user.entityId != null ? ` (${user.entityId})` : ''}` : t('branches.system');
 
   const checkLinkedEmployees = async (): Promise<number> => {
@@ -570,10 +571,17 @@ export default function BranchProfile() {
   };
 
   const handleArchive = async () => {
-    if (!window.electronAPI?.dbQuery) return;
+    if (!window.electronAPI?.archiveRecord && !window.electronAPI?.dbQuery) return;
     try {
-      await window.electronAPI.dbQuery('UPDATE branches SET status = ? WHERE id = ?', ['archived', branchId]);
-      await window.electronAPI.dbQuery('DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['branch', branchId]);
+      if (window.electronAPI.archiveRecord) {
+        const res = await window.electronAPI.archiveRecord(sessionToken, 'branches', branchId);
+        if (!res?.success) throw new Error(res?.error || 'ARCHIVE_FAILED');
+      } else if (window.electronAPI.dbQuery) {
+        await window.electronAPI.dbQuery('UPDATE branches SET status = ? WHERE id = ?', ['archived', branchId]);
+      }
+      if (window.electronAPI.dbQuery) {
+        await window.electronAPI.dbQuery('DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['branch', branchId]);
+      }
       const label = branch?.name || branch?.code || `${t('branches.branchFallbackLabel')} ${branchId}`;
       await logActivity({
         module: 'archive',

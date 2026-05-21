@@ -202,6 +202,7 @@ export default function EmployeeProfile() {
   }, [visibleTabs, activeTab]);
 
   const user = useAuthStore((s) => s.user);
+  const sessionToken = useAuthStore((s) => s.sessionToken);
   const updateLinkedEntityImagePath = useAuthStore((s) => s.updateLinkedEntityImagePath);
   const performerLabel = user ? `${user.fullName || user.username}${user.entityId != null ? ` (${user.entityId})` : ''}` : t('employees.systemLabel');
 
@@ -214,9 +215,14 @@ export default function EmployeeProfile() {
   }, [user, employeeId, updateLinkedEntityImagePath]);
 
   const handleArchive = async () => {
-    if (!window.electronAPI?.dbQuery) return;
+    if (!window.electronAPI?.archiveRecord && !window.electronAPI?.dbQuery) return;
     try {
-      await window.electronAPI.dbQuery('UPDATE employees SET status = ? WHERE id = ?', ['archived', employeeId]);
+      if (window.electronAPI.archiveRecord) {
+        const res = await window.electronAPI.archiveRecord(sessionToken, 'employees', employeeId);
+        if (!res?.success) throw new Error(res?.error || 'ARCHIVE_FAILED');
+      } else if (window.electronAPI.dbQuery) {
+        await window.electronAPI.dbQuery('UPDATE employees SET status = ? WHERE id = ?', ['archived', employeeId]);
+      }
       const label = employee?.name || employee?.code || `موظف ${employeeId}`;
       await logActivity({
         module: 'archive',

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DocumentExplorerFile, DocumentExplorerFolder, DocumentPreview } from '../types/documents';
+import type { ArchiveRestoreResource } from '../types/electron';
 import {
   Users,
   Store,
@@ -39,6 +40,16 @@ const TABS = [
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
+type RestorableTabId = Extract<TabId, ArchiveRestoreResource>;
+
+const RESTORE_ENTITY_TYPES: Record<RestorableTabId, string> = {
+  employees: 'employee',
+  branches: 'branch',
+  vehicles: 'vehicle',
+  housing: 'housing',
+  phones: 'phone',
+  entities: 'entity',
+};
 
 /** مفتاح الترجمة لأسماء المجلدات الجذرية في مستكشف المؤرشفة */
 const ROOT_FOLDER_I18N_KEYS: Record<string, string> = {
@@ -96,6 +107,7 @@ const ROOT_ICONS: Record<string, React.ComponentType<any>> = {
 export default function Archive() {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
+  const sessionToken = useAuthStore((s) => s.sessionToken);
   const [activeTab, setActiveTab] = useState<TabId>('employees');
   const [loading, setLoading] = useState(true);
   const [archivedList, setArchivedList] = useState<any[]>([]);
@@ -171,29 +183,30 @@ export default function Archive() {
   }, [activeTab, currentPath, loadExplorer]);
 
   const handleRestore = async (tab: TabId, id: number, label: string) => {
+    if (tab === 'documents') return;
     const api = window.electronAPI;
-    if (!api?.dbQuery) return;
+    if (!api?.archiveRestore && !api?.dbQuery) return;
     setRestoringId(id);
     try {
-      let entityType = '';
-      if (tab === 'employees') {
-        entityType = 'employee';
-        await api.dbQuery('UPDATE employees SET status = ? WHERE id = ?', ['active', id]);
-      } else if (tab === 'branches') {
-        entityType = 'branch';
-        await api.dbQuery('UPDATE branches SET status = ? WHERE id = ?', ['active', id]);
-      } else if (tab === 'vehicles') {
-        entityType = 'vehicle';
-        await api.dbQuery('UPDATE vehicles SET status = ? WHERE id = ?', ['active', id]);
-      } else if (tab === 'housing') {
-        entityType = 'housing';
-        await api.dbQuery('UPDATE housing_units SET status = ? WHERE id = ?', ['active', id]);
-      } else if (tab === 'phones') {
-        entityType = 'phone';
-        await api.dbQuery('UPDATE phones SET status = ? WHERE id = ?', ['active', id]);
-      } else if (tab === 'entities') {
-        entityType = 'entity';
-        await api.dbQuery('UPDATE entities SET status = ? WHERE id = ?', ['active', id]);
+      const entityType = RESTORE_ENTITY_TYPES[tab];
+      if (api.archiveRestore) {
+        const res = await api.archiveRestore(sessionToken, tab, id);
+        if (!res?.success) throw new Error(res?.error || t('archive.restoreFailed'));
+      } else if (api.dbQuery) {
+        // Fallback for old preload builds only. New builds use archiveRestore.
+        if (tab === 'employees') {
+          await api.dbQuery('UPDATE employees SET status = ? WHERE id = ?', ['active', id]);
+        } else if (tab === 'branches') {
+          await api.dbQuery('UPDATE branches SET status = ? WHERE id = ?', ['active', id]);
+        } else if (tab === 'vehicles') {
+          await api.dbQuery('UPDATE vehicles SET status = ? WHERE id = ?', ['active', id]);
+        } else if (tab === 'housing') {
+          await api.dbQuery('UPDATE housing_units SET status = ? WHERE id = ?', ['active', id]);
+        } else if (tab === 'phones') {
+          await api.dbQuery('UPDATE phones SET status = ? WHERE id = ?', ['active', id]);
+        } else if (tab === 'entities') {
+          await api.dbQuery('UPDATE entities SET status = ? WHERE id = ?', ['active', id]);
+        }
       }
       const details = `restored::${entityType}::${label}::${performerLabel}`;
       await logActivity({

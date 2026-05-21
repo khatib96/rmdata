@@ -226,6 +226,7 @@ export default function HousingProfile() {
   }, [id]);
 
   const authUser = useAuthStore((s) => s.user);
+  const sessionToken = useAuthStore((s) => s.sessionToken);
   const performerLabel = authUser
     ? `${authUser.fullName || authUser.username}${authUser.entityId != null ? ` (${authUser.entityId})` : ''}`
     : t('housing.systemPerformer');
@@ -252,9 +253,14 @@ export default function HousingProfile() {
   };
 
   const handleArchiveUnit = async () => {
-    if (!window.electronAPI?.dbQuery || !unit || Number.isNaN(housingIdNum)) return;
+    if ((!window.electronAPI?.archiveRecord && !window.electronAPI?.dbQuery) || !unit || Number.isNaN(housingIdNum)) return;
     try {
-      await execDb('UPDATE housing_units SET status = ? WHERE id = ?', ['archived', housingIdNum]);
+      if (window.electronAPI.archiveRecord) {
+        const res = await window.electronAPI.archiveRecord(sessionToken, 'housing', housingIdNum);
+        if (!res?.success) throw new Error(res?.error || 'ARCHIVE_FAILED');
+      } else {
+        await execDb('UPDATE housing_units SET status = ? WHERE id = ?', ['archived', housingIdNum]);
+      }
       const label = unit.name || unit.code || `housing ${housingIdNum}`;
       await logActivity({
         module: 'archive',

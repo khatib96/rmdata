@@ -416,6 +416,35 @@ RMDATA هو نظام إدارة داخلي لشركة الرداء الموحد.
 
 - تحويل مرشح خطر آخر من `db/query` إلى REST/IPC، مثل المستخدمين أو الأرشفة والحذف.
 
+### 2026-05-21 - المرحلة C: تحويل أرشفة واسترجاع السجلات إلى API
+
+ما تم:
+
+- إضافة Node endpoints لأرشفة السجلات:
+  - `POST /api/employees/:id/archive`
+  - `POST /api/branches/:id/archive`
+  - `POST /api/vehicles/:id/archive`
+  - `POST /api/housing/:id/archive`
+  - `POST /api/phones/:id/archive`
+  - `POST /api/entities/:id/archive`
+- إضافة Node endpoints لاسترجاع السجلات المؤرشفة:
+  - `POST /api/employees/:id/restore`
+  - `POST /api/branches/:id/restore`
+  - `POST /api/vehicles/:id/restore`
+  - `POST /api/housing/:id/restore`
+  - `POST /api/phones/:id/restore`
+  - `POST /api/entities/:id/restore`
+- إضافة Electron IPC:
+  - `archive:archive`
+  - `archive:restore`
+- تعديل بروفايلات الموارد الأساسية لاستخدام `archiveRecord` بدلاً من `UPDATE ... SET status = 'archived'` المباشر.
+- تعديل `Archive` لاستخدام `archiveRestore` بدلاً من `UPDATE ... SET status = 'active'` المباشر، مع إبقاء fallback قديم فقط للتوافق.
+- تحديث `docs/RMDATA_MASTER_PLAN_2026.md` و `docs/db_query_inventory_phase_c.md` بعلامات الإنجاز.
+
+الخطوة التالية:
+
+- تحويل مسار خطر آخر من `db/query`، والأولوية الآن: الحذف النهائي للسجلات أو إدارة المستخدمين أو الضرائب.
+
 ## 8. قالب تسجيل جلسة جديدة
 
 عند نهاية كل جلسة، أضف مدخلاً بهذا الشكل:

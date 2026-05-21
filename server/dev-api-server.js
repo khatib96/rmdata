@@ -944,6 +944,82 @@ function buildWhere(queryParams, allowed) {
   return { where: clauses.length ? `WHERE ${clauses.join(' AND ')}` : '', params };
 }
 
+async function restoreArchivedResource(req, res, config) {
+  const id = safeInt(req.params.id);
+  if (!id) return res.status(400).json({ success: false, error: 'INVALID_ID' });
+  try {
+    const existing = await dbAll(`SELECT id FROM ${config.table} WHERE id = ? LIMIT 1`, [id]);
+    if (!existing.length) return res.status(404).json({ success: false, error: 'NOT_FOUND' });
+    await dbRun(`UPDATE ${config.table} SET status = 'active', updatedAt = NOW() WHERE id = ?`, [id]);
+    broadcastDataChange('updated', config.resource, id);
+    res.json({ success: true, data: { entityType: config.entityType } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+}
+
+async function archiveResource(req, res, config) {
+  const id = safeInt(req.params.id);
+  if (!id) return res.status(400).json({ success: false, error: 'INVALID_ID' });
+  try {
+    const existing = await dbAll(`SELECT id FROM ${config.table} WHERE id = ? LIMIT 1`, [id]);
+    if (!existing.length) return res.status(404).json({ success: false, error: 'NOT_FOUND' });
+    await dbRun(`UPDATE ${config.table} SET status = 'archived', updatedAt = NOW() WHERE id = ?`, [id]);
+    broadcastDataChange('deleted', config.resource, id);
+    res.json({ success: true, data: { entityType: config.entityType } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+}
+
+app.post('/api/employees/:id/archive', requireAuth, requirePermission('employees', 'archive'), (req, res) =>
+  archiveResource(req, res, { table: 'employees', resource: 'employees', entityType: 'employee' })
+);
+
+app.post('/api/branches/:id/archive', requireAuth, requirePermission('branches', 'edit'), (req, res) =>
+  archiveResource(req, res, { table: 'branches', resource: 'branches', entityType: 'branch' })
+);
+
+app.post('/api/vehicles/:id/archive', requireAuth, requirePermission('vehicles', 'edit'), (req, res) =>
+  archiveResource(req, res, { table: 'vehicles', resource: 'vehicles', entityType: 'vehicle' })
+);
+
+app.post('/api/housing/:id/archive', requireAuth, requirePermission('housing', 'edit'), (req, res) =>
+  archiveResource(req, res, { table: 'housing_units', resource: 'housing', entityType: 'housing' })
+);
+
+app.post('/api/phones/:id/archive', requireAuth, requirePermission('phones', 'edit'), (req, res) =>
+  archiveResource(req, res, { table: 'phones', resource: 'phones', entityType: 'phone' })
+);
+
+app.post('/api/entities/:id/archive', requireAuth, requirePermission('entities', 'edit'), (req, res) =>
+  archiveResource(req, res, { table: 'entities', resource: 'entities', entityType: 'entity' })
+);
+
+app.post('/api/employees/:id/restore', requireAuth, requirePermission('employees', 'edit'), (req, res) =>
+  restoreArchivedResource(req, res, { table: 'employees', resource: 'employees', entityType: 'employee' })
+);
+
+app.post('/api/branches/:id/restore', requireAuth, requirePermission('branches', 'edit'), (req, res) =>
+  restoreArchivedResource(req, res, { table: 'branches', resource: 'branches', entityType: 'branch' })
+);
+
+app.post('/api/vehicles/:id/restore', requireAuth, requirePermission('vehicles', 'edit'), (req, res) =>
+  restoreArchivedResource(req, res, { table: 'vehicles', resource: 'vehicles', entityType: 'vehicle' })
+);
+
+app.post('/api/housing/:id/restore', requireAuth, requirePermission('housing', 'edit'), (req, res) =>
+  restoreArchivedResource(req, res, { table: 'housing_units', resource: 'housing', entityType: 'housing' })
+);
+
+app.post('/api/phones/:id/restore', requireAuth, requirePermission('phones', 'edit'), (req, res) =>
+  restoreArchivedResource(req, res, { table: 'phones', resource: 'phones', entityType: 'phone' })
+);
+
+app.post('/api/entities/:id/restore', requireAuth, requirePermission('entities', 'edit'), (req, res) =>
+  restoreArchivedResource(req, res, { table: 'entities', resource: 'entities', entityType: 'entity' })
+);
+
 // ── Branches ─────────────────────────────────────────────────────────────────
 
 app.get('/api/branches', requireAuth, requirePermission('branches', 'view'), async (req, res) => {

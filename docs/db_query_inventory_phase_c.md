@@ -104,6 +104,22 @@
   - Electron IPC: `permissions:getUserPermissions`
   - Electron IPC: `permissions:setUserPermissions`
   - الواجهة تستخدم `permissionsSetUserPermissions` بدلاً من `DELETE/INSERT user_permissions` المباشر.
+- أرشفة واسترجاع السجلات الأساسية:
+  - Node: `POST /api/employees/:id/archive`
+  - Node: `POST /api/branches/:id/archive`
+  - Node: `POST /api/vehicles/:id/archive`
+  - Node: `POST /api/housing/:id/archive`
+  - Node: `POST /api/phones/:id/archive`
+  - Node: `POST /api/entities/:id/archive`
+  - Node: `POST /api/employees/:id/restore`
+  - Node: `POST /api/branches/:id/restore`
+  - Node: `POST /api/vehicles/:id/restore`
+  - Node: `POST /api/housing/:id/restore`
+  - Node: `POST /api/phones/:id/restore`
+  - Node: `POST /api/entities/:id/restore`
+  - Electron IPC: `archive:archive`
+  - Electron IPC: `archive:restore`
+  - الواجهة تستخدم `archiveRecord` و `archiveRestore` بدلاً من `UPDATE ... SET status = ...` المباشر.
 
 ## 6. قواعد إضافة أي جدول جديد
 

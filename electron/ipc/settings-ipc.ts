@@ -13,6 +13,24 @@ import { syncPermissionCatalog } from '../database/permission-catalog-sync';
 import { assertDbQueryAllowed, inspectDbQuery } from '../sql-query-guard';
 import { resolveActorFromSessionToken } from '../device-session-utils';
 
+const ARCHIVE_RESTORE_RESOURCES = {
+  employees: { table: 'employees', module: 'employees', remotePath: 'employees', entityType: 'employee', archiveActions: ['archive'] },
+  branches: { table: 'branches', module: 'branches', remotePath: 'branches', entityType: 'branch', archiveActions: ['edit'] },
+  vehicles: { table: 'vehicles', module: 'vehicles', remotePath: 'vehicles', entityType: 'vehicle', archiveActions: ['edit'] },
+  housing: { table: 'housing_units', module: 'housing', remotePath: 'housing', entityType: 'housing', archiveActions: ['edit'] },
+  phones: { table: 'phones', module: 'phones', remotePath: 'phones', entityType: 'phone', archiveActions: ['edit'] },
+  entities: { table: 'entities', module: 'entities', remotePath: 'entities', entityType: 'entity', archiveActions: ['edit'] },
+} as const;
+
+type ArchiveRestoreResource = keyof typeof ARCHIVE_RESTORE_RESOURCES;
+
+function getArchiveResourceConfig(resource: unknown) {
+  const key = String(resource || '') as ArchiveRestoreResource;
+  return Object.prototype.hasOwnProperty.call(ARCHIVE_RESTORE_RESOURCES, key)
+    ? ARCHIVE_RESTORE_RESOURCES[key]
+    : null;
+}
+
 export function registerSettingsHandlers() {
   ipcMain.handle('settings:ping', async () => 'pong');
 
@@ -176,18 +194,24 @@ $w.Stop()
     }
   });
 
-  async function hasLocalSettingsPermission(sessionToken: string | null | undefined, action: 'sub.permissions' | 'edit'): Promise<boolean> {
+  async function hasLocalPermission(sessionToken: string | null | undefined, module: string, actions: readonly string[]): Promise<boolean> {
     const actor = await resolveActorFromSessionToken(sessionToken);
     if (!actor) return false;
     if (actor.roleId === 1) return true;
+    if (!actions.length) return false;
+    const placeholders = actions.map(() => '?').join(', ');
     const res = await runDbQueryInternal(
       `SELECT 1 FROM user_permissions up
        INNER JOIN permissions p ON p.id = up.permissionId
-       WHERE up.userId = ? AND p.module = 'settings' AND p.action = ?
+       WHERE up.userId = ? AND p.module = ? AND p.action IN (${placeholders})
        LIMIT 1`,
-      [actor.userId, action],
+      [actor.userId, module, ...actions],
     );
     return !!res.success && Array.isArray(res.data) && res.data.length > 0;
+  }
+
+  async function hasLocalSettingsPermission(sessionToken: string | null | undefined, action: 'sub.permissions' | 'edit'): Promise<boolean> {
+    return hasLocalPermission(sessionToken, 'settings', [action]);
   }
 
   ipcMain.handle('permissions:getUserPermissions', async (_event, payload: { sessionToken?: string | null; userId?: number }) => {
@@ -257,6 +281,72 @@ $w.Stop()
         await qr.release();
       }
       return { success: true, data: { permissionIds } };
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  });
+
+  ipcMain.handle('archive:archive', async (_event, payload: { sessionToken?: string | null; resource?: string; id?: number }) => {
+    try {
+      const id = Number(payload?.id || 0);
+      if (!Number.isInteger(id) || id <= 0) return { success: false, error: 'INVALID_ID' };
+      const config = getArchiveResourceConfig(payload?.resource);
+      if (!config) return { success: false, error: 'INVALID_RESOURCE' };
+
+      const conf = getDbConnectionConfig();
+      if (conf.mode === 'remote') {
+        return await remoteApiJson<{ success: boolean; data?: { entityType: string }; error?: string }>(
+          `/api/${config.remotePath}/${id}/archive`,
+          { method: 'POST' },
+        );
+      }
+
+      const allowed = await hasLocalPermission(payload?.sessionToken, config.module, config.archiveActions);
+      if (!allowed) return { success: false, error: 'FORBIDDEN' };
+      if (!AppDataSource.isInitialized) await initializeDatabase();
+      const qr = AppDataSource.createQueryRunner();
+      await qr.connect();
+      try {
+        const rows = await qr.query(`SELECT id FROM ${config.table} WHERE id = ? LIMIT 1`, [id]);
+        if (!Array.isArray(rows) || rows.length === 0) return { success: false, error: 'NOT_FOUND' };
+        await qr.query(`UPDATE ${config.table} SET status = 'archived', updatedAt = datetime('now') WHERE id = ?`, [id]);
+        return { success: true, data: { entityType: config.entityType } };
+      } finally {
+        await qr.release();
+      }
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  });
+
+  ipcMain.handle('archive:restore', async (_event, payload: { sessionToken?: string | null; resource?: string; id?: number }) => {
+    try {
+      const id = Number(payload?.id || 0);
+      if (!Number.isInteger(id) || id <= 0) return { success: false, error: 'INVALID_ID' };
+      const config = getArchiveResourceConfig(payload?.resource);
+      if (!config) return { success: false, error: 'INVALID_RESOURCE' };
+
+      const conf = getDbConnectionConfig();
+      if (conf.mode === 'remote') {
+        return await remoteApiJson<{ success: boolean; data?: { entityType: string }; error?: string }>(
+          `/api/${config.remotePath}/${id}/restore`,
+          { method: 'POST' },
+        );
+      }
+
+      const allowed = await hasLocalPermission(payload?.sessionToken, config.module, ['edit']);
+      if (!allowed) return { success: false, error: 'FORBIDDEN' };
+      if (!AppDataSource.isInitialized) await initializeDatabase();
+      const qr = AppDataSource.createQueryRunner();
+      await qr.connect();
+      try {
+        const rows = await qr.query(`SELECT id FROM ${config.table} WHERE id = ? LIMIT 1`, [id]);
+        if (!Array.isArray(rows) || rows.length === 0) return { success: false, error: 'NOT_FOUND' };
+        await qr.query(`UPDATE ${config.table} SET status = 'active', updatedAt = datetime('now') WHERE id = ?`, [id]);
+        return { success: true, data: { entityType: config.entityType } };
+      } finally {
+        await qr.release();
+      }
     } catch (e) {
       return { success: false, error: e instanceof Error ? e.message : String(e) };
     }

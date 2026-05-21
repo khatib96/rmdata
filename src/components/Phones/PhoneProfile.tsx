@@ -147,12 +147,18 @@ export default function PhoneProfile() {
   }, [phoneId]);
 
   const user = useAuthStore((s) => s.user);
+  const sessionToken = useAuthStore((s) => s.sessionToken);
   const performerLabel = user ? `${user.fullName || user.username}${user.entityId != null ? ` (${user.entityId})` : ''}` : t('phones.systemPerformer');
 
   const handleArchive = async () => {
-    if (!window.electronAPI?.dbQuery) return;
+    if (!window.electronAPI?.archiveRecord && !window.electronAPI?.dbQuery) return;
     try {
-      await window.electronAPI.dbQuery('UPDATE phones SET status = ? WHERE id = ?', ['archived', phoneId]);
+      if (window.electronAPI.archiveRecord) {
+        const res = await window.electronAPI.archiveRecord(sessionToken, 'phones', phoneId);
+        if (!res?.success) throw new Error(res?.error || 'ARCHIVE_FAILED');
+      } else if (window.electronAPI.dbQuery) {
+        await window.electronAPI.dbQuery('UPDATE phones SET status = ? WHERE id = ?', ['archived', phoneId]);
+      }
       const label = phone?.phoneNumber || phone?.code || `phone ${phoneId}`;
       await logActivity({
         module: 'archive',
