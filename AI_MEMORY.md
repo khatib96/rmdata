@@ -130,6 +130,8 @@ RMDATA هو نظام إدارة داخلي لشركة الرداء الموحد.
 
 6. بعد كل جلسة عمل، حدّث هذا الملف في قسم "سجل الجلسات".
 
+7. أي بند يُنجز في `docs/RMDATA_MASTER_PLAN_2026.md` يجب تعليمه بـ `[x]` في نفس الجلسة.
+
 ## 7. سجل الجلسات
 
 ### 2026-05-13 - مراجعة وتحضير V2
@@ -348,6 +350,8 @@ RMDATA هو نظام إدارة داخلي لشركة الرداء الموحد.
 ما تم:
 
 - إصلاح 51 خطأ TypeScript على دفعات (runtime، electronAPI، مستندات، أيقونات، unused).
+- تعليم المرحلة B كبند مكتمل في `docs/RMDATA_MASTER_PLAN_2026.md`.
+- تعليم الخطط القديمة كمراجع ثانوية وليست الخطة الحاكمة.
 - إضافة استيراد `listDocuments` / `deleteDocumentById` في `HousingProfile.tsx`.
 - توسيع `generateNextCode` لدعم بادئة `RMO` وجدول `employers`.
 - توحيد أنواع الأيقونات (`LucideIcon | typeof TaxIcon`) في Sidebar و Services.

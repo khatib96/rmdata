@@ -100,6 +100,8 @@ PHP Gateway
 
 ## 6. الخطة المرحلية المعتمدة
 
+قاعدة التتبع: أي بند يكتمل يجب أن يتحول من `[ ]` إلى `[x]` في هذه الوثيقة، ويُضاف سطر مختصر في `AI_MEMORY.md` عند نهاية الجلسة.
+
 ## المرحلة A - توحيد المرجع والحالة
 
 المدة: يوم إلى يومين.
@@ -110,7 +112,7 @@ PHP Gateway
 
 - [x] اعتماد هذه الوثيقة كمرجع رئيسي.
 - [x] تحديث `AI_MEMORY.md` ليشير إلى هذه الوثيقة.
-- [ ] تعليم الخطط القديمة كأرشيف أو مرجع تفصيلي غير حاكم.
+- [x] تعليم الخطط القديمة كأرشيف أو مرجع تفصيلي غير حاكم.
 - [x] توثيق آخر نتائج الفحص: `typecheck`, `test:sqlite-mysql`, `node --check`.
 - [x] إنشاء سجل قرار قصير: Node هو المسار الجديد، PHP Legacy، `db/query` Legacy.
 
@@ -121,27 +123,23 @@ PHP Gateway
 
 ## المرحلة B - إصلاح TypeScript وثبات البناء
 
+الحالة: مكتملة بتاريخ 2026-05-21.
+
 المدة: أسبوع إلى أسبوعين.
 
 الهدف: جعل `npm run typecheck` ينجح بدون تعطيل الصرامة.
 
-ترتيب الإصلاح:
+مهام الإغلاق:
 
-1. أخطاء runtime المحتملة:
-   - دوال مفقودة مثل خدمات المستندات.
-   - props غير مدعومة.
-   - callbacks بأنواع غير مطابقة.
-   - `window.electronAPI` قد يكون undefined.
-
-2. توحيد أنواع المستندات:
-   - اعتماد `DocumentListItem` واحد.
-   - حسم `customName`: إما `string | null` أو `string | null | undefined` في كل النظام.
-
-3. الأيقونات:
-   - جعل custom icons متوافقة مع نوع أيقونات Lucide أو توسيع نوع prop.
-
-4. تنظيف unused:
-   - حذف imports/locals غير المستخدمة بعد التأكد أنها ليست كوداً ناقصاً.
+- [x] تشغيل `npm run typecheck` وجرد الأخطاء.
+- [x] إصلاح أخطاء runtime المحتملة.
+- [x] إصلاح حالات `window.electronAPI` التي قد تكون undefined.
+- [x] توحيد أنواع المستندات في الملفات المتأثرة.
+- [x] إصلاح توافق أيقونات Lucide/custom icons.
+- [x] تنظيف unused imports/locals دون تعطيل `noUnusedLocals`.
+- [x] التحقق النهائي عبر `npm run typecheck`.
+- [x] التحقق عبر `npm run test:sqlite-mysql`.
+- [x] التحقق عبر `node --check server/dev-api-server.js`.
 
 معيار النجاح:
 
@@ -659,30 +657,30 @@ Push:
 
 هذا هو الترتيب الذي يجب السير عليه:
 
-1. تحديث المراجع واعتماد هذه الوثيقة.
-2. إصلاح `npm run typecheck`.
-3. تشديد `db/query`.
-4. جعل Node هو مسار التطوير الوحيد وترك PHP.
-5. إكمال الصلاحيات والأمان.
-6. إنشاء migrations مرقمة.
-7. تقسيم الملفات الكبيرة.
-8. بناء V2 Backend: أجهزة، حضور، جداول، مبيعات، طلبات، تنبيهات.
-9. بناء Desktop V2.
-10. بناء Mobile Expo.
-11. إضافة الدردشة.
-12. توسيع التقارير والذكاء التشغيلي.
+- [x] تحديث المراجع واعتماد هذه الوثيقة.
+- [x] إصلاح `npm run typecheck`.
+- [ ] تشديد `db/query`.
+- [ ] جعل Node هو مسار التطوير الوحيد وترك PHP.
+- [ ] إكمال الصلاحيات والأمان.
+- [ ] إنشاء migrations مرقمة.
+- [ ] تقسيم الملفات الكبيرة.
+- [ ] بناء V2 Backend: أجهزة، حضور، جداول، مبيعات، طلبات، تنبيهات.
+- [ ] بناء Desktop V2.
+- [ ] بناء Mobile Expo.
+- [ ] إضافة الدردشة.
+- [ ] توسيع التقارير والذكاء التشغيلي.
 
 ## 8. تعريف "جاهز للمرحلة 1"
 
 لا تعتبر المرحلة V2 Backend جاهزة للبدء إلا إذا تحقق التالي:
 
-- `npm run typecheck` أخضر.
-- `db/query` لم يعد يستخدم لأي feature جديد.
-- PHP مجمد كـ Legacy.
-- يوجد `database/migrations/` مرقم.
-- يوجد Permission Catalog محدث لمجالات V2.
-- يوجد نمط endpoint واضح: route + validation + permission + service + audit عند الحاجة.
-- يوجد backup حديث قبل أول migration.
+- [x] `npm run typecheck` أخضر.
+- [ ] `db/query` لم يعد يستخدم لأي feature جديد.
+- [ ] PHP مجمد كـ Legacy.
+- [ ] يوجد `database/migrations/` مرقم.
+- [ ] يوجد Permission Catalog محدث لمجالات V2.
+- [ ] يوجد نمط endpoint واضح: route + validation + permission + service + audit عند الحاجة.
+- [ ] يوجد backup حديث قبل أول migration.
 
 ## 9. Prompt تشغيل لأي AI أو مبرمج
 
