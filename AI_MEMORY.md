@@ -512,6 +512,24 @@ RMDATA هو نظام إدارة داخلي لشركة الرداء الموحد.
 
 - المرحلة D: تثبيت Node API كمسار التطوير الوحيد وبدء نقل بقايا العمليات الواسعة من `dbQuery` بدون إضافة أي شيء جديد إلى PHP.
 
+### 2026-05-22 - المرحلة D: بداية Node-only وعزل legacy-db-query
+
+ما تم:
+
+- إنشاء `docs/node_api_endpoints_phase_d.md` لتثبيت قائمة Node endpoints الحالية.
+- عزل مسار `POST /api/db/query` في `server/routes/legacy-db-query.js`.
+- إبقاء عقد `/api/db/query` كما هو، مع تمرير نفس الحراس والصلاحيات والـ side effects من `dev-api-server.js`.
+- تعليم بند جرد endpoints في Phase D كمنجز، وتعليم `legacy-db-query` كأول route معزول.
+
+التحقق:
+
+- `node --check server/dev-api-server.js`: نجح.
+- `node --check server/routes/legacy-db-query.js`: نجح.
+
+الخطوة التالية:
+
+- الاستمرار في Phase D بتقسيم routes التالية حسب المجال أو نقل أول شاشة إنشاء/تعديل كبيرة إلى API صريح.
+
 ## 8. قالب تسجيل جلسة جديدة
 
 عند نهاية كل جلسة، أضف مدخلاً بهذا الشكل:

@@ -1,6 +1,6 @@
 # RMDATA Master Repair and Development Plan
 
-آخر تحديث: 2026-05-21
+آخر تحديث: 2026-05-22
 
 هذه الوثيقة هي المرجع العملي الأساسي لخطة إصلاح وتطوير RMDATA. عند التعارض بينها وبين الخطط القديمة، هذه الوثيقة هي المعتمدة. الملفات القديمة تبقى كمراجع تفصيلية وأرشيف قرار، وليست مصدر حالة نهائية.
 
@@ -21,6 +21,7 @@
 | `docs/permissions_rearchitecture_review.md` | مرجع تصميم الصلاحيات المتقدم |
 | `docs/permissions_phaseA_checklist.md` | مرجع ما تم وما لم يتم في مرحلة الصلاحيات |
 | `docs/db_query_inventory_phase_c.md` | جرد مرحلة C لمسارات `db/query` والجداول المؤقتة |
+| `docs/node_api_endpoints_phase_d.md` | جرد Phase D لمسارات Node API الحالية |
 | `docs/CURRENT_STATE_v1.4.1.md` | مرجع تشغيل VPS والحالة المنشورة |
 | `docs/SYSTEM_EVOLUTION_PLAN.md` | أرشيف أفكار قديم |
 
@@ -194,7 +195,7 @@ PHP Gateway
 
 المهام:
 
-- [ ] تثبيت قائمة endpoints التي تخدمها Node حالياً.
+- [x] تثبيت قائمة endpoints التي تخدمها Node حالياً.
 - [ ] إنشاء `server/app.js` أو `server/src/app.js` كنقطة تنظيم.
 - [ ] تقسيم routes حسب المجال:
   - `auth`
@@ -209,7 +210,7 @@ PHP Gateway
   - `phones`
   - `settings`
   - `tax`
-  - `legacy-db-query`
+  - [x] `legacy-db-query` معزول في `server/routes/legacy-db-query.js`
 - [ ] توحيد response shape للأخطاء والنجاح.
 - [ ] إضافة validation لكل endpoint جديد أو منقول.
 - [ ] عدم حذف PHP فوراً؛ يتم تجميده فقط.
