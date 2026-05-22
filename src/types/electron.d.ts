@@ -72,6 +72,47 @@ export type ArchiveRestoreResource =
   | 'entities'
   | 'employers';
 
+export interface TaxPaymentWrite {
+  entityId: number;
+  type: 'vat' | 'corporate';
+  financialYear: number;
+  quarter?: number | null;
+  periodFrom?: string | null;
+  periodTo?: string | null;
+  amount: number;
+  paymentDate: string;
+}
+
+export interface EmployeeStatusUpdatePayload {
+  employeeUpdate: {
+    status: string;
+    workBranchId?: number | null;
+    profession?: string | null;
+    professionKeys?: string | null;
+    professionCustomTitle?: string | null;
+    actualSalary?: number | null;
+    loanType?: string | null;
+    loanBranchId?: number | null;
+    loanProfession?: string | null;
+    loanSubStatus?: string | null;
+    loanExpiryDate?: string | null;
+    tempContractNumber?: string | null;
+    loanSalary?: number | null;
+    targetEntityName?: string | null;
+    loanLeaveStartDate?: string | null;
+    loanLeaveEndDate?: string | null;
+  };
+  statusChanged?: boolean;
+  previousStatus?: string | null;
+  effectiveDate?: string | null;
+  dateCorrection?: {
+    mainDateChanged?: boolean;
+    actionDate?: string | null;
+  } | null;
+  performedByUserId?: number | null;
+  performedByUsername?: string | null;
+}
+
 export interface ElectronAPI {
   /** Phase 0: verify IPC/preload is available */
   ping?: () => Promise<string>;
@@ -112,6 +153,24 @@ export interface ElectronAPI {
     resource: ArchiveRestoreResource,
     id: number,
   ) => Promise<{ success: boolean; data?: { entityType: string }; error?: string }>;
+  taxPaymentCreate?: (
+    sessionToken: string | null | undefined,
+    payment: TaxPaymentWrite,
+  ) => Promise<{ success: boolean; id?: number; error?: string }>;
+  taxPaymentDelete?: (
+    sessionToken: string | null | undefined,
+    id: number,
+  ) => Promise<{ success: boolean; error?: string }>;
+  taxEntityBranchesReplace?: (
+    sessionToken: string | null | undefined,
+    entityId: number,
+    branchIds: number[],
+  ) => Promise<{ success: boolean; data?: { entityId: number; branchIds: number[] }; error?: string }>;
+  employeeStatusUpdate?: (
+    sessionToken: string | null | undefined,
+    employeeId: number,
+    payload: EmployeeStatusUpdatePayload,
+  ) => Promise<{ success: boolean; error?: string }>;
   authLogin?: (username: string, password: string) => Promise<AuthLoginResult>;
   devicePing?: (
     token: string,

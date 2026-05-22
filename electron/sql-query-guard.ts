@@ -30,8 +30,6 @@ const LEGACY_MUTATION_TABLE_ALLOWLIST = new Set([
   'role_permissions',
   'settings',
   'status_history',
-  'tax_entity_branches',
-  'tax_payments',
   'user_permission_overrides',
   'user_permissions',
   'users',

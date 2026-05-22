@@ -151,14 +151,10 @@ export default function PhoneProfile() {
   const performerLabel = user ? `${user.fullName || user.username}${user.entityId != null ? ` (${user.entityId})` : ''}` : t('phones.systemPerformer');
 
   const handleArchive = async () => {
-    if (!window.electronAPI?.archiveRecord && !window.electronAPI?.dbQuery) return;
+    if (!window.electronAPI?.archiveRecord) return;
     try {
-      if (window.electronAPI.archiveRecord) {
-        const res = await window.electronAPI.archiveRecord(sessionToken, 'phones', phoneId);
-        if (!res?.success) throw new Error(res?.error || 'ARCHIVE_FAILED');
-      } else if (window.electronAPI.dbQuery) {
-        await window.electronAPI.dbQuery('UPDATE phones SET status = ? WHERE id = ?', ['archived', phoneId]);
-      }
+      const res = await window.electronAPI.archiveRecord(sessionToken, 'phones', phoneId);
+      if (!res?.success) throw new Error(res?.error || 'ARCHIVE_FAILED');
       const label = phone?.phoneNumber || phone?.code || `phone ${phoneId}`;
       await logActivity({
         module: 'archive',
@@ -178,18 +174,13 @@ export default function PhoneProfile() {
   };
 
   const handleDelete = async () => {
-    if (!window.electronAPI?.archiveDeletePermanent && !window.electronAPI?.dbQuery) return;
+    if (!window.electronAPI?.archiveDeletePermanent) return;
     try {
       for (const doc of phoneDocuments) {
         await deleteDocumentById(doc.id);
       }
-      if (window.electronAPI.archiveDeletePermanent) {
-        const res = await window.electronAPI.archiveDeletePermanent(sessionToken, 'phones', phoneId);
-        if (!res?.success) throw new Error(res?.error || 'DELETE_FAILED');
-      } else if (window.electronAPI.dbQuery) {
-        await window.electronAPI.dbQuery('DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['phone', phoneId]);
-        await window.electronAPI.dbQuery('DELETE FROM phones WHERE id = ?', [phoneId]);
-      }
+      const res = await window.electronAPI.archiveDeletePermanent(sessionToken, 'phones', phoneId);
+      if (!res?.success) throw new Error(res?.error || 'DELETE_FAILED');
       setDeleteConfirm(false);
       navigate('/dashboard/phones');
     } catch (e) {

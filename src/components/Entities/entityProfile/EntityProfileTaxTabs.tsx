@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Plus, Trash2, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { DatePicker } from '../../shared/DatePicker';
+import { useAuthStore } from '../../../store/authStore';
 import { MIN_TAX_YEAR, QUARTERS, type TaxPayment } from './entityProfileTypes';
 
 export function VatPaymentsTab({
@@ -21,24 +22,36 @@ export function VatPaymentsTab({
   const [amount, setAmount] = useState('');
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
   const [paymentDocPath, setPaymentDocPath] = useState<string | null>(null);
+  const sessionToken = useAuthStore((s) => s.sessionToken);
 
   const quarterInfo = QUARTERS.find((x) => x.q === quarter);
   const periodFrom = quarterInfo ? `${financialYear}-${quarterInfo.from}` : '';
   const periodTo = quarterInfo ? `${financialYear}-${quarterInfo.to}` : '';
 
   const handleAdd = async () => {
-    if (!window.electronAPI?.dbQuery || !paymentDate) return;
+    const api = window.electronAPI;
+    if (!api?.taxPaymentCreate || !paymentDate) return;
     const amt = amount === '' ? 0 : parseFloat(amount);
     if (isNaN(amt)) return;
-    const ins = await window.electronAPI.dbQuery(
-      'INSERT INTO tax_payments (entityId, type, financialYear, quarter, periodFrom, periodTo, amount, paymentDate) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [entityId, 'vat', financialYear, quarter, periodFrom, periodTo, amt, paymentDate]
-    );
-    if (paymentDocPath && ins?.success && window.electronAPI?.documentSave) {
+    const ins = await api.taxPaymentCreate(sessionToken, {
+      entityId,
+      type: 'vat',
+      financialYear,
+      quarter,
+      periodFrom,
+      periodTo,
+      amount: amt,
+      paymentDate,
+    });
+    if (!ins.success) {
+      toast.error(ins.error || 'TAX_PAYMENT_CREATE_FAILED');
+      return;
+    }
+    if (paymentDocPath && api.documentSave) {
       const parts = paymentDocPath.replace(/\\/g, '/').split('/');
       const baseName = parts[parts.length - 1] || 'file';
       const relativePath = `Taxes/${entityId}/payments/${baseName}`;
-      await window.electronAPI.documentSave({
+      await api.documentSave({
         sourceFilePath: paymentDocPath,
         relativePath,
         customName: `وصل دفعة ض.ق.م.ض ${financialYear} Q${quarter}`,
@@ -55,8 +68,13 @@ export function VatPaymentsTab({
   };
 
   const handleDelete = async (paymentId: number) => {
-    if (!window.electronAPI?.dbQuery) return;
-    await window.electronAPI.dbQuery('DELETE FROM tax_payments WHERE id = ?', [paymentId]);
+    const api = window.electronAPI;
+    if (!api?.taxPaymentDelete) return;
+    const res = await api.taxPaymentDelete(sessionToken, paymentId);
+    if (!res.success) {
+      toast.error(res.error || 'TAX_PAYMENT_DELETE_FAILED');
+      return;
+    }
     onSaved();
   };
 
@@ -208,20 +226,29 @@ export function CorporatePaymentsTab({
   const [amount, setAmount] = useState('');
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
   const [paymentDocPath, setPaymentDocPath] = useState<string | null>(null);
+  const sessionToken = useAuthStore((s) => s.sessionToken);
 
   const handleAdd = async () => {
-    if (!window.electronAPI?.dbQuery || !paymentDate) return;
+    const api = window.electronAPI;
+    if (!api?.taxPaymentCreate || !paymentDate) return;
     const amt = amount === '' ? 0 : parseFloat(amount);
     if (isNaN(amt)) return;
-    const ins = await window.electronAPI.dbQuery(
-      'INSERT INTO tax_payments (entityId, type, financialYear, amount, paymentDate) VALUES (?, ?, ?, ?, ?)',
-      [entityId, 'corporate', financialYear, amt, paymentDate]
-    );
-    if (paymentDocPath && ins?.success && window.electronAPI?.documentSave) {
+    const ins = await api.taxPaymentCreate(sessionToken, {
+      entityId,
+      type: 'corporate',
+      financialYear,
+      amount: amt,
+      paymentDate,
+    });
+    if (!ins.success) {
+      toast.error(ins.error || 'TAX_PAYMENT_CREATE_FAILED');
+      return;
+    }
+    if (paymentDocPath && api.documentSave) {
       const parts = paymentDocPath.replace(/\\/g, '/').split('/');
       const baseName = parts[parts.length - 1] || 'file';
       const relativePath = `Taxes/${entityId}/payments/${baseName}`;
-      await window.electronAPI.documentSave({
+      await api.documentSave({
         sourceFilePath: paymentDocPath,
         relativePath,
         customName: `وصل دفعة ض.شركات ${financialYear}`,
@@ -238,8 +265,13 @@ export function CorporatePaymentsTab({
   };
 
   const handleDelete = async (paymentId: number) => {
-    if (!window.electronAPI?.dbQuery) return;
-    await window.electronAPI.dbQuery('DELETE FROM tax_payments WHERE id = ?', [paymentId]);
+    const api = window.electronAPI;
+    if (!api?.taxPaymentDelete) return;
+    const res = await api.taxPaymentDelete(sessionToken, paymentId);
+    if (!res.success) {
+      toast.error(res.error || 'TAX_PAYMENT_DELETE_FAILED');
+      return;
+    }
     onSaved();
   };
 

@@ -280,6 +280,16 @@ $w.Stop()
     return hasLocalPermission(sessionToken, 'settings', [action]);
   }
 
+  async function hasLocalAnyPermission(
+    sessionToken: string | null | undefined,
+    candidates: Array<readonly [string, readonly string[]]>,
+  ): Promise<boolean> {
+    for (const [module, actions] of candidates) {
+      if (await hasLocalPermission(sessionToken, module, actions)) return true;
+    }
+    return false;
+  }
+
   ipcMain.handle('permissions:getUserPermissions', async (_event, payload: { sessionToken?: string | null; userId?: number }) => {
     try {
       const userId = Number(payload?.userId || 0);
@@ -457,6 +467,289 @@ $w.Stop()
       } finally {
         await qr.release();
       }
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  });
+
+  ipcMain.handle('tax:paymentCreate', async (_event, payload: {
+    sessionToken?: string | null;
+    payment?: {
+      entityId?: unknown;
+      type?: unknown;
+      financialYear?: unknown;
+      quarter?: unknown;
+      periodFrom?: unknown;
+      periodTo?: unknown;
+      amount?: unknown;
+      paymentDate?: unknown;
+    };
+  }) => {
+    try {
+      const payment = payload?.payment || {};
+      const entityId = Number(payment.entityId || 0);
+      const type = String(payment.type || '').trim();
+      const financialYear = Number(payment.financialYear || 0);
+      const quarter = payment.quarter == null || payment.quarter === '' ? null : Number(payment.quarter);
+      const amount = Number(payment.amount);
+      const paymentDate = String(payment.paymentDate || '').trim();
+      const periodFrom = payment.periodFrom == null || payment.periodFrom === '' ? null : String(payment.periodFrom);
+      const periodTo = payment.periodTo == null || payment.periodTo === '' ? null : String(payment.periodTo);
+      if (
+        !Number.isInteger(entityId) || entityId <= 0 ||
+        !['vat', 'corporate'].includes(type) ||
+        !Number.isInteger(financialYear) || financialYear <= 0 ||
+        (quarter !== null && (!Number.isInteger(quarter) || quarter <= 0)) ||
+        !Number.isFinite(amount) ||
+        !paymentDate
+      ) {
+        return { success: false, error: 'INVALID_REQUEST' };
+      }
+
+      const body = { entityId, type, financialYear, quarter, periodFrom, periodTo, amount, paymentDate };
+      const conf = getDbConnectionConfig();
+      if (conf.mode === 'remote') {
+        return await remoteApiJson<{ success: boolean; id?: number; error?: string }>(
+          '/api/tax/payments',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          },
+        );
+      }
+
+      const allowed = await hasLocalAnyPermission(payload?.sessionToken, [
+        ['settings', ['edit']],
+        ['entities', ['edit']],
+      ]);
+      if (!allowed) return { success: false, error: 'FORBIDDEN' };
+      if (!AppDataSource.isInitialized) await initializeDatabase();
+      const qr = AppDataSource.createQueryRunner();
+      await qr.connect();
+      try {
+        await qr.query(
+          `INSERT INTO tax_payments (entityId, type, financialYear, quarter, periodFrom, periodTo, amount, paymentDate)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [entityId, type, financialYear, quarter, periodFrom, periodTo, amount, paymentDate],
+        );
+        const rows = await qr.query('SELECT last_insert_rowid() AS id') as { id?: number }[];
+        const id = Number(rows?.[0]?.id || 0) || undefined;
+        return { success: true, id };
+      } finally {
+        await qr.release();
+      }
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  });
+
+  ipcMain.handle('tax:paymentDelete', async (_event, payload: { sessionToken?: string | null; id?: unknown }) => {
+    try {
+      const id = Number(payload?.id || 0);
+      if (!Number.isInteger(id) || id <= 0) return { success: false, error: 'INVALID_ID' };
+      const conf = getDbConnectionConfig();
+      if (conf.mode === 'remote') {
+        return await remoteApiJson<{ success: boolean; error?: string }>(
+          `/api/tax/payments/${id}`,
+          { method: 'DELETE' },
+        );
+      }
+
+      const allowed = await hasLocalAnyPermission(payload?.sessionToken, [
+        ['settings', ['edit']],
+        ['entities', ['edit']],
+      ]);
+      if (!allowed) return { success: false, error: 'FORBIDDEN' };
+      if (!AppDataSource.isInitialized) await initializeDatabase();
+      const qr = AppDataSource.createQueryRunner();
+      await qr.connect();
+      try {
+        await qr.query('DELETE FROM tax_payments WHERE id = ?', [id]);
+      } finally {
+        await qr.release();
+      }
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  });
+
+  ipcMain.handle('tax:entityBranchesReplace', async (_event, payload: { sessionToken?: string | null; entityId?: unknown; branchIds?: unknown[] }) => {
+    try {
+      const entityId = Number(payload?.entityId || 0);
+      if (!Number.isInteger(entityId) || entityId <= 0) return { success: false, error: 'INVALID_ID' };
+      const branchIds = [...new Set((Array.isArray(payload?.branchIds) ? payload.branchIds : [])
+        .map((x) => Number(x))
+        .filter((x) => Number.isInteger(x) && x > 0))];
+
+      const conf = getDbConnectionConfig();
+      if (conf.mode === 'remote') {
+        return await remoteApiJson<{ success: boolean; data?: { entityId: number; branchIds: number[] }; error?: string }>(
+          `/api/tax/entity-branches/${entityId}`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ branchIds }),
+          },
+        );
+      }
+
+      const allowed = await hasLocalAnyPermission(payload?.sessionToken, [
+        ['settings', ['edit']],
+        ['entities', ['edit']],
+      ]);
+      if (!allowed) return { success: false, error: 'FORBIDDEN' };
+      if (!AppDataSource.isInitialized) await initializeDatabase();
+      const qr = AppDataSource.createQueryRunner();
+      await qr.connect();
+      await qr.startTransaction();
+      try {
+        await qr.query('DELETE FROM tax_entity_branches WHERE entityId = ?', [entityId]);
+        for (const branchId of branchIds) {
+          await qr.query('INSERT OR IGNORE INTO tax_entity_branches (entityId, branchId) VALUES (?, ?)', [entityId, branchId]);
+        }
+        await qr.commitTransaction();
+      } catch (err) {
+        await qr.rollbackTransaction();
+        throw err;
+      } finally {
+        await qr.release();
+      }
+      return { success: true, data: { entityId, branchIds } };
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  });
+
+  ipcMain.handle('employee:statusUpdate', async (_event, payload: {
+    sessionToken?: string | null;
+    employeeId?: unknown;
+    employeeUpdate?: Record<string, unknown>;
+    statusChanged?: boolean;
+    previousStatus?: string | null;
+    effectiveDate?: string | null;
+    dateCorrection?: { mainDateChanged?: boolean; actionDate?: string | null } | null;
+    performedByUserId?: number | null;
+    performedByUsername?: string | null;
+  }) => {
+    try {
+      const employeeId = Number(payload?.employeeId || 0);
+      if (!Number.isInteger(employeeId) || employeeId <= 0) return { success: false, error: 'INVALID_ID' };
+      const u = payload?.employeeUpdate || {};
+      if (!u.status) return { success: false, error: 'INVALID_REQUEST' };
+
+      const body = {
+        employeeUpdate: u,
+        statusChanged: !!payload?.statusChanged,
+        previousStatus: payload?.previousStatus ?? null,
+        effectiveDate: payload?.effectiveDate ?? null,
+        dateCorrection: payload?.dateCorrection ?? null,
+        performedByUserId: payload?.performedByUserId ?? null,
+        performedByUsername: payload?.performedByUsername ?? null,
+      };
+
+      const conf = getDbConnectionConfig();
+      if (conf.mode === 'remote') {
+        return await remoteApiJson<{ success: boolean; error?: string }>(
+          `/api/employees/${employeeId}/status`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          },
+        );
+      }
+
+      const allowed = await hasLocalAnyPermission(payload?.sessionToken, [
+        ['employees', ['action.changeStatus', 'edit']],
+      ]);
+      if (!allowed) return { success: false, error: 'FORBIDDEN' };
+      const actor = await resolveActorFromSessionToken(payload?.sessionToken);
+      if (!AppDataSource.isInitialized) await initializeDatabase();
+      const updateValues = [
+        String(u.status),
+        u.workBranchId ?? null,
+        u.profession ?? null,
+        u.professionKeys ?? null,
+        u.professionCustomTitle ?? null,
+        u.actualSalary ?? null,
+        u.loanType ?? null,
+        u.loanBranchId ?? null,
+        u.loanProfession ?? null,
+        u.loanSubStatus ?? null,
+        u.loanExpiryDate ?? null,
+        u.tempContractNumber ?? null,
+        u.loanSalary ?? null,
+        u.targetEntityName ?? null,
+        u.loanLeaveStartDate ?? null,
+        u.loanLeaveEndDate ?? null,
+      ];
+      const qr = AppDataSource.createQueryRunner();
+      await qr.connect();
+      await qr.startTransaction();
+      try {
+        const dateCorrection = payload?.dateCorrection || null;
+        if (dateCorrection?.mainDateChanged && dateCorrection.actionDate) {
+          const lastRows = await qr.query(
+            "SELECT id, startDate, endDate FROM status_history WHERE entityType = 'employee' AND entityId = ? ORDER BY startDate DESC LIMIT 1",
+            [employeeId],
+          ) as { id?: number; startDate?: string; endDate?: string | null }[];
+          const last = lastRows[0];
+          if (last?.id) {
+            const endDate = last.endDate ? String(last.endDate).slice(0, 10) : null;
+            const durationDays = endDate
+              ? Math.round((new Date(endDate).getTime() - new Date(dateCorrection.actionDate).getTime()) / (1000 * 60 * 60 * 24))
+              : 0;
+            await qr.query('UPDATE status_history SET startDate = ?, durationDays = ? WHERE id = ?', [dateCorrection.actionDate, durationDays, last.id]);
+          }
+        }
+
+        if (payload?.statusChanged) {
+          const effectiveDate = String(payload.effectiveDate || '').slice(0, 10);
+          if (!effectiveDate) throw new Error('EFFECTIVE_DATE_REQUIRED');
+          const actorId = payload.performedByUserId ?? actor?.userId ?? null;
+          const actorName = payload.performedByUsername ?? null;
+          const lastRows = await qr.query(
+            "SELECT id, startDate FROM status_history WHERE entityType = 'employee' AND entityId = ? ORDER BY startDate DESC LIMIT 1",
+            [employeeId],
+          ) as { id?: number; startDate?: string }[];
+          const lastRecord = lastRows[0];
+          if (lastRecord?.startDate) {
+            const prevStart = String(lastRecord.startDate).slice(0, 10);
+            const durationDays = Math.round((new Date(effectiveDate).getTime() - new Date(prevStart).getTime()) / (1000 * 60 * 60 * 24));
+            await qr.query('UPDATE status_history SET endDate = ?, durationDays = ? WHERE id = ?', [effectiveDate, durationDays, lastRecord.id]);
+          } else if (payload.previousStatus) {
+            await qr.query(
+              `INSERT INTO status_history (entityType, entityId, status, startDate, endDate, durationDays, performedByUserId, performedByUsername)
+               VALUES ('employee', ?, ?, ?, ?, 0, ?, ?)`,
+              [employeeId, payload.previousStatus, effectiveDate, effectiveDate, actorId, actorName],
+            );
+          }
+          await qr.query(
+            `INSERT INTO status_history (entityType, entityId, status, startDate, performedByUserId, performedByUsername)
+             VALUES ('employee', ?, ?, ?, ?, ?)`,
+            [employeeId, String(u.status), effectiveDate, actorId, actorName],
+          );
+        }
+
+        await qr.query(
+          `UPDATE employees SET
+             status = ?, workBranchId = ?, profession = ?, professionKeys = ?, professionCustomTitle = ?,
+             actualSalary = ?, loanType = ?, loanBranchId = ?, loanProfession = ?, loanSubStatus = ?,
+             loanExpiryDate = ?, tempContractNumber = ?, loanSalary = ?, targetEntityName = ?,
+             loanLeaveStartDate = ?, loanLeaveEndDate = ?, updatedAt = datetime('now')
+           WHERE id = ?`,
+          [...updateValues, employeeId],
+        );
+        await qr.commitTransaction();
+      } catch (err) {
+        await qr.rollbackTransaction();
+        throw err;
+      } finally {
+        await qr.release();
+      }
+      return { success: true };
     } catch (e) {
       return { success: false, error: e instanceof Error ? e.message : String(e) };
     }

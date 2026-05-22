@@ -3,7 +3,7 @@
  * نوفّر استدعاء dbQuery عبر خادم API محلي أو عبر بوابة PHP البعيدة عند استخدام Hostinger.
  */
 import { API_SESSION_TOKEN_KEY } from './apiSessionToken';
-import type { ArchiveRestoreResource, ElectronAPI } from '../types/electron';
+import type { ArchiveRestoreResource, ElectronAPI, EmployeeStatusUpdatePayload, TaxPaymentWrite } from '../types/electron';
 
 if (typeof window !== 'undefined' && !window.electronAPI?.dbQuery) {
   const rawBase = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE) || '';
@@ -97,6 +97,10 @@ if (typeof window !== 'undefined' && !window.electronAPI?.dbQuery) {
     | 'archiveRecord'
     | 'archiveRestore'
     | 'archiveDeletePermanent'
+    | 'taxPaymentCreate'
+    | 'taxPaymentDelete'
+    | 'taxEntityBranchesReplace'
+    | 'employeeStatusUpdate'
     | 'authLogin'
     | 'authChangeOwnPassword'
     | 'documentList'
@@ -151,6 +155,46 @@ if (typeof window !== 'undefined' && !window.electronAPI?.dbQuery) {
         const { res, json } = await deleteJson(`/api/${resource}/${id}/permanent`);
         if (!res.ok) return { success: false, error: json.error || res.statusText };
         return { success: json.success !== false, data: json.data, error: json.error };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { success: false, error: msg };
+      }
+    },
+    taxPaymentCreate: async (_sessionToken: string | null | undefined, payment: TaxPaymentWrite) => {
+      try {
+        const { res, json } = await postJson('/api/tax/payments', payment);
+        if (!res.ok) return { success: false, error: json.error || res.statusText };
+        return { success: json.success !== false, id: json.id, error: json.error };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { success: false, error: msg };
+      }
+    },
+    taxPaymentDelete: async (_sessionToken: string | null | undefined, id: number) => {
+      try {
+        const { res, json } = await deleteJson(`/api/tax/payments/${id}`);
+        if (!res.ok) return { success: false, error: json.error || res.statusText };
+        return { success: json.success !== false, error: json.error };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { success: false, error: msg };
+      }
+    },
+    taxEntityBranchesReplace: async (_sessionToken: string | null | undefined, entityId: number, branchIds: number[]) => {
+      try {
+        const { res, json } = await putJson(`/api/tax/entity-branches/${entityId}`, { branchIds });
+        if (!res.ok) return { success: false, error: json.error || res.statusText };
+        return { success: json.success !== false, data: json.data, error: json.error };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { success: false, error: msg };
+      }
+    },
+    employeeStatusUpdate: async (_sessionToken: string | null | undefined, employeeId: number, payload: EmployeeStatusUpdatePayload) => {
+      try {
+        const { res, json } = await putJson(`/api/employees/${employeeId}/status`, payload);
+        if (!res.ok) return { success: false, error: json.error || res.statusText };
+        return { success: json.success !== false, error: json.error };
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         return { success: false, error: msg };

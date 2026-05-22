@@ -185,29 +185,12 @@ export default function Archive() {
   const handleRestore = async (tab: TabId, id: number, label: string) => {
     if (tab === 'documents') return;
     const api = window.electronAPI;
-    if (!api?.archiveRestore && !api?.dbQuery) return;
+    if (!api?.archiveRestore) return;
     setRestoringId(id);
     try {
       const entityType = RESTORE_ENTITY_TYPES[tab];
-      if (api.archiveRestore) {
-        const res = await api.archiveRestore(sessionToken, tab, id);
-        if (!res?.success) throw new Error(res?.error || t('archive.restoreFailed'));
-      } else if (api.dbQuery) {
-        // Fallback for old preload builds only. New builds use archiveRestore.
-        if (tab === 'employees') {
-          await api.dbQuery('UPDATE employees SET status = ? WHERE id = ?', ['active', id]);
-        } else if (tab === 'branches') {
-          await api.dbQuery('UPDATE branches SET status = ? WHERE id = ?', ['active', id]);
-        } else if (tab === 'vehicles') {
-          await api.dbQuery('UPDATE vehicles SET status = ? WHERE id = ?', ['active', id]);
-        } else if (tab === 'housing') {
-          await api.dbQuery('UPDATE housing_units SET status = ? WHERE id = ?', ['active', id]);
-        } else if (tab === 'phones') {
-          await api.dbQuery('UPDATE phones SET status = ? WHERE id = ?', ['active', id]);
-        } else if (tab === 'entities') {
-          await api.dbQuery('UPDATE entities SET status = ? WHERE id = ?', ['active', id]);
-        }
-      }
+      const res = await api.archiveRestore(sessionToken, tab, id);
+      if (!res?.success) throw new Error(res?.error || t('archive.restoreFailed'));
       const details = `restored::${entityType}::${label}::${performerLabel}`;
       await logActivity({
         module: 'archive',

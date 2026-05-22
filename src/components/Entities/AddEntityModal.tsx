@@ -41,6 +41,7 @@ export default function AddEntityModal({
 }: AddEntityModalProps) {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
+  const sessionToken = useAuthStore((s) => s.sessionToken);
   const [form, setForm] = useState(INITIAL_FORM);
   const [mainBranchOptions, setMainBranchOptions] = useState<{ id: number; name: string }[]>([]);
   const [linkableBranches, setLinkableBranches] = useState<{ id: number; name: string }[]>([]);
@@ -166,6 +167,17 @@ export default function AddEntityModal({
     load();
   }, [isOpen, editEntityId]);
 
+  const replaceTaxEntityBranches = async (entityId: number, branchIds: number[]) => {
+    const api = window.electronAPI;
+    if (!api?.taxEntityBranchesReplace) {
+      throw new Error('TAX_ENTITY_BRANCH_API_UNAVAILABLE');
+    }
+    const res = await api.taxEntityBranchesReplace(sessionToken, entityId, branchIds);
+    if (!res.success) {
+      throw new Error(res.error || 'TAX_ENTITY_BRANCH_REPLACE_FAILED');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -207,15 +219,9 @@ export default function AddEntityModal({
               editEntityId,
             ]
           );
-          await window.electronAPI.dbQuery('DELETE FROM tax_entity_branches WHERE entityId = ?', [editEntityId]);
           const mainId = form.mainBranchId ? parseInt(form.mainBranchId, 10) : null;
           const idsToLink = mainId ? [...new Set([mainId, ...form.branchIds])] : form.branchIds;
-          for (const bid of idsToLink) {
-            await window.electronAPI.dbQuery(
-              'INSERT INTO tax_entity_branches (entityId, branchId) VALUES (?, ?)',
-              [editEntityId, bid]
-            );
-          }
+          await replaceTaxEntityBranches(editEntityId, idsToLink);
         } else {
           const ins = await window.electronAPI.dbQuery(
             `INSERT INTO entities (entityNickname, mainBranchId, name, nameEn, registeredAddress, contactNumber, trn, vatRegDate, vatFilingCycle, corporateTaxGiban, corporateTaxRegDate, financialYearEnd, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -235,17 +241,12 @@ export default function AddEntityModal({
               form.notes || null,
             ]
           );
-          const entityId = ins?.lastInsertId;
+          const entityId = Number(ins?.lastInsertId || 0);
           logEntityId = entityId || 0;
           const mainId = form.mainBranchId ? parseInt(form.mainBranchId, 10) : null;
           const idsToLink = mainId ? [...new Set([mainId, ...form.branchIds])] : form.branchIds;
           if (entityId && idsToLink.length > 0) {
-            for (const bid of idsToLink) {
-              await window.electronAPI.dbQuery(
-                'INSERT INTO tax_entity_branches (entityId, branchId) VALUES (?, ?)',
-                [entityId, bid]
-              );
-            }
+            await replaceTaxEntityBranches(entityId, idsToLink);
           }
         }
         const ENTITY_TRACKED = ['entityNickname', 'mainBranchId', 'name', 'nameEn', 'registeredAddress', 'contactNumber', 'trn', 'vatEffectiveDate', 'vatFilingCycle', 'corporateTaxRegistration', 'corporateTaxEffectiveDate', 'financialYearEnd', 'notes'];

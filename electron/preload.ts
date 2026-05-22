@@ -53,6 +53,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('archive:restore', { sessionToken: sessionToken ?? undefined, resource, id }) as Promise<{ success: boolean; data?: { entityType: string }; error?: string }>,
   archiveDeletePermanent: (sessionToken: string | null | undefined, resource: string, id: number) =>
     ipcRenderer.invoke('archive:deletePermanent', { sessionToken: sessionToken ?? undefined, resource, id }) as Promise<{ success: boolean; data?: { entityType: string }; error?: string }>,
+  taxPaymentCreate: (sessionToken: string | null | undefined, payment: Record<string, unknown>) =>
+    ipcRenderer.invoke('tax:paymentCreate', { sessionToken: sessionToken ?? undefined, payment }) as Promise<{ success: boolean; id?: number; error?: string }>,
+  taxPaymentDelete: (sessionToken: string | null | undefined, id: number) =>
+    ipcRenderer.invoke('tax:paymentDelete', { sessionToken: sessionToken ?? undefined, id }) as Promise<{ success: boolean; error?: string }>,
+  taxEntityBranchesReplace: (sessionToken: string | null | undefined, entityId: number, branchIds: number[]) =>
+    ipcRenderer.invoke('tax:entityBranchesReplace', { sessionToken: sessionToken ?? undefined, entityId, branchIds }) as Promise<{ success: boolean; data?: { entityId: number; branchIds: number[] }; error?: string }>,
+  employeeStatusUpdate: (sessionToken: string | null | undefined, employeeId: number, payload: Record<string, unknown>) =>
+    ipcRenderer.invoke('employee:statusUpdate', { sessionToken: sessionToken ?? undefined, employeeId, ...payload }) as Promise<{ success: boolean; error?: string }>,
   authLogin: (username: string, password: string) =>
     ipcRenderer.invoke('auth:login', username, password),
   devicePing: (token: string, gpsCoords: string | null, locationCity?: string | null) =>

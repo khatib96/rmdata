@@ -1,6 +1,6 @@
 # db/query Inventory - Phase C
 
-آخر تحديث: 2026-05-21
+آخر تحديث: 2026-05-22
 
 الغرض من هذا الجرد هو تثبيت نطاق `db/query` قبل بناء V2. هذا المسار Legacy، ولن يستخدم لأي ميزة جديدة.
 
@@ -71,8 +71,6 @@
 - `role_permissions`
 - `settings`
 - `status_history`
-- `tax_entity_branches`
-- `tax_payments`
 - `user_permission_overrides`
 - `user_permissions`
 - `users`
@@ -87,7 +85,7 @@
 - المستخدمون: `users`.
 - الأرشفة والحذف: employees, branches, vehicles, phones, housing, entities.
 - المستندات: أي حذف أو أرشفة أو تعديل metadata.
-- الضرائب والمدفوعات: `tax_payments`, `tax_entity_branches`.
+- الضرائب والمدفوعات: `tax_payments`, `tax_entity_branches` (تم تحويل مسارات الإضافة/الحذف/استبدال ربط الفروع إلى API/IPC في 2026-05-22).
 - إعدادات النظام: `settings`.
 
 الأولوية التالية:
@@ -122,6 +120,10 @@
   - Electron IPC: `archive:archive`
   - Electron IPC: `archive:restore`
   - الواجهة تستخدم `archiveRecord` و `archiveRestore` بدلاً من `UPDATE ... SET status = ...` المباشر.
+- تحديث حالة الموظف وسجل الحالة:
+  - Node: `PUT /api/employees/:id/status`
+  - Electron IPC: `employee:statusUpdate`
+  - الواجهة تستخدم `employeeStatusUpdate` بدلاً من `UPDATE employees` و `INSERT/UPDATE status_history` المباشر في `UpdateStatusModal`.
 - الحذف النهائي للموارد الأساسية:
   - Node: `DELETE /api/employees/:id/permanent`
   - Node: `DELETE /api/branches/:id/permanent`
@@ -132,6 +134,17 @@
   - Node: `DELETE /api/employers/:id/permanent`
   - Electron IPC: `archive:deletePermanent`
   - الواجهة تستخدم `archiveDeletePermanent` بدلاً من سلاسل `DELETE FROM ...` المباشرة في بروفايلات الموارد الأساسية.
+- الضرائب والمدفوعات:
+  - Node: `POST /api/tax/payments`
+  - Node: `DELETE /api/tax/payments/:id`
+  - Node: `PUT /api/tax/entity-branches/:entityId`
+  - Electron IPC: `tax:paymentCreate`
+  - Electron IPC: `tax:paymentDelete`
+  - Electron IPC: `tax:entityBranchesReplace`
+  - الواجهة تستخدم methods صريحة بدلاً من `INSERT/DELETE tax_payments` و `DELETE/INSERT tax_entity_branches`.
+  - تمت إزالة `tax_payments` و `tax_entity_branches` من allowlist المؤقتة للكتابة عبر `dbQuery`.
+- تنظيف fallbacks:
+  - أزيلت fallbacks القديمة التي كانت تستخدم `dbQuery` للأرشفة والاسترجاع والحذف النهائي عند غياب IPC الجديد.
 
 ## 6. قواعد إضافة أي جدول جديد
 

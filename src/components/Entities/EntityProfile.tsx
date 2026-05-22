@@ -131,12 +131,8 @@ export default function EntityProfile() {
 
   const handleArchive = async () => {
     try {
-      if (window.electronAPI?.archiveRecord) {
-        const res = await window.electronAPI.archiveRecord(sessionToken, 'entities', entityId);
-        if (!res?.success) throw new Error(res?.error || 'ARCHIVE_FAILED');
-      } else {
-        await dbQuery('UPDATE entities SET status = ? WHERE id = ?', ['archived', entityId], { skipCache: true });
-      }
+      const res = await window.electronAPI?.archiveRecord?.(sessionToken, 'entities', entityId);
+      if (!res?.success) throw new Error(res?.error || 'ARCHIVE_FAILED');
       const label = entity?.entityNickname || entity?.name || `كيان ${entityId}`;
       await logActivity({
         module: 'archive',
@@ -158,14 +154,8 @@ export default function EntityProfile() {
 
   const handleDelete = async () => {
     try {
-      if (window.electronAPI?.archiveDeletePermanent) {
-        const res = await window.electronAPI.archiveDeletePermanent(sessionToken, 'entities', entityId);
-        if (!res?.success) throw new Error(res?.error || 'DELETE_FAILED');
-      } else {
-        await dbQuery('DELETE FROM tax_payments WHERE entityId = ?', [entityId], { skipCache: true });
-        await dbQuery('DELETE FROM tax_entity_branches WHERE entityId = ?', [entityId], { skipCache: true });
-        await dbQuery('DELETE FROM entities WHERE id = ?', [entityId], { skipCache: true });
-      }
+      const res = await window.electronAPI?.archiveDeletePermanent?.(sessionToken, 'entities', entityId);
+      if (!res?.success) throw new Error(res?.error || 'DELETE_FAILED');
       setDeleteConfirm(false);
       invalidateDbCache();
       navigate('/dashboard/entities');

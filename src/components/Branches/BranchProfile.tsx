@@ -571,14 +571,10 @@ export default function BranchProfile() {
   };
 
   const handleArchive = async () => {
-    if (!window.electronAPI?.archiveRecord && !window.electronAPI?.dbQuery) return;
+    if (!window.electronAPI?.archiveRecord) return;
     try {
-      if (window.electronAPI.archiveRecord) {
-        const res = await window.electronAPI.archiveRecord(sessionToken, 'branches', branchId);
-        if (!res?.success) throw new Error(res?.error || 'ARCHIVE_FAILED');
-      } else if (window.electronAPI.dbQuery) {
-        await window.electronAPI.dbQuery('UPDATE branches SET status = ? WHERE id = ?', ['archived', branchId]);
-      }
+      const res = await window.electronAPI.archiveRecord(sessionToken, 'branches', branchId);
+      if (!res?.success) throw new Error(res?.error || 'ARCHIVE_FAILED');
       const label = branch?.name || branch?.code || `${t('branches.branchFallbackLabel')} ${branchId}`;
       await logActivity({
         module: 'archive',
@@ -598,25 +594,10 @@ export default function BranchProfile() {
   };
 
   const handleDelete = async () => {
-    if (!window.electronAPI?.archiveDeletePermanent && !window.electronAPI?.dbQuery) return;
+    if (!window.electronAPI?.archiveDeletePermanent) return;
     try {
-      if (window.electronAPI.archiveDeletePermanent) {
-        const res = await window.electronAPI.archiveDeletePermanent(sessionToken, 'branches', branchId);
-        if (!res?.success) throw new Error(res?.error || 'DELETE_FAILED');
-      } else if (window.electronAPI.dbQuery) {
-        await window.electronAPI.dbQuery('DELETE FROM tax_entity_branches WHERE branchId = ?', [branchId]);
-        await window.electronAPI.dbQuery('DELETE FROM branch_custom_fields WHERE branchId = ?', [branchId]);
-        await window.electronAPI.dbQuery('DELETE FROM branch_establishments WHERE branchId = ?', [branchId]);
-        const lease = await window.electronAPI.dbQuery('SELECT id FROM branch_leases WHERE branchId = ? LIMIT 1', [branchId]);
-        const leaseId = lease?.data?.[0]?.id;
-        if (leaseId) {
-          await window.electronAPI.dbQuery('DELETE FROM lease_installments WHERE leaseId = ?', [leaseId]);
-          await window.electronAPI.dbQuery('DELETE FROM branch_leases WHERE branchId = ?', [branchId]);
-        }
-        await window.electronAPI.dbQuery('DELETE FROM branch_licenses WHERE branchId = ?', [branchId]);
-        await window.electronAPI.dbQuery('UPDATE employees SET workBranchId = NULL WHERE workBranchId = ?', [branchId]);
-        await window.electronAPI.dbQuery('DELETE FROM branches WHERE id = ?', [branchId]);
-      }
+      const res = await window.electronAPI.archiveDeletePermanent(sessionToken, 'branches', branchId);
+      if (!res?.success) throw new Error(res?.error || 'DELETE_FAILED');
       setDeleteConfirm(false);
       navigate('/dashboard/branches');
     } catch (e) {

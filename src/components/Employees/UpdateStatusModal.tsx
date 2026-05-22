@@ -57,7 +57,7 @@ export default function UpdateStatusModal({
   lastPeriodEndDate: _lastPeriodEndDate,
 }: UpdateStatusModalProps) {
   const { t } = useTranslation();
-  const { user } = useAuthStore();
+  const { user, sessionToken } = useAuthStore();
   const WORK_STATUS_OPTIONS = useMemo(() => [
     { value: EmploymentStatus.ACTIVE, label: t('employees.statusActive') },
     { value: EmploymentStatus.LEAVE, label: t('employees.statusLeave') },
@@ -214,7 +214,7 @@ export default function UpdateStatusModal({
     setLoading(true);
     try {
       const api = window.electronAPI;
-      if (!api?.dbQuery) {
+      if (!api?.employeeStatusUpdate) {
         setError(t('employees.connectionUnavailable'));
         setLoading(false);
         return;
@@ -234,6 +234,24 @@ export default function UpdateStatusModal({
       const isInternalSeconded = newStatus === EmploymentStatus.SECONDED && loanType === LoanType.INTERNAL && loanBranchId;
       const loanLeaveStartVal = isTerminated ? null : (!isInternalSeconded ? null : (lnSub === LoanSubStatus.LEAVE || lnSub === LoanSubStatus.INACTIVE) ? (loanLeaveStartDate || actionDate) : (employee as EmployeeForStatus).loanLeaveStartDate ?? null);
       const loanLeaveEndVal = isTerminated ? null : (!isInternalSeconded ? null : lnSub === LoanSubStatus.ACTIVE ? (needReturnDateLoan && previousStatusEndDate ? previousStatusEndDate : (loanLeaveEndDate || effectiveDate)) : (loanLeaveEndDate || null));
+      const employeeUpdate = {
+        status: newStatus,
+        workBranchId: isTerminated ? null : (isInternalSeconded ? workBr : showWorkDetails ? workBr : null),
+        profession: isTerminated ? null : (professionDisplay || null),
+        professionKeys: isTerminated ? null : JSON.stringify(professionKeys),
+        professionCustomTitle: isTerminated ? null : (professionCustomTitle || null),
+        actualSalary: isTerminated ? null : (showWorkDetails || isInternalSeconded ? actSal : null),
+        loanType: isTerminated ? null : (newStatus === EmploymentStatus.SECONDED ? (loanType || null) : null),
+        loanBranchId: isTerminated ? null : (newStatus === EmploymentStatus.SECONDED ? lnBr : null),
+        loanProfession: isTerminated ? null : (newStatus === EmploymentStatus.SECONDED ? (loanType === LoanType.INTERNAL ? (professionDisplay || null) : (loanProfession || null)) : null),
+        loanSubStatus: isTerminated ? null : (newStatus === EmploymentStatus.SECONDED ? lnSub : null),
+        loanExpiryDate: isTerminated ? null : (newStatus === EmploymentStatus.SECONDED && loanExpiryDate ? loanExpiryDate : null),
+        tempContractNumber: isTerminated ? null : (newStatus === EmploymentStatus.SECONDED ? (tempContractNumber || null) : null),
+        loanSalary: isTerminated ? null : (newStatus === EmploymentStatus.SECONDED && lnSal ? lnSal : null),
+        targetEntityName: isTerminated ? null : (newStatus === EmploymentStatus.SECONDED && loanType === LoanType.EXTERNAL ? (targetEntityName || null) : null),
+        loanLeaveStartDate: loanLeaveStartVal,
+        loanLeaveEndDate: loanLeaveEndVal,
+      };
 
       const oldWorkBr = employee.workBranchId ?? null;
       const oldProfDisplay = buildProfessionDisplay(
@@ -251,43 +269,14 @@ export default function UpdateStatusModal({
       const isDateOnlyCorrection = onlyBranchProfSal && (mainDateChanged || secondedDateChanged);
 
       if (isDateOnlyCorrection) {
-        if (mainDateChanged) {
-          const lastRes = await api.dbQuery(
-            "SELECT id, startDate, endDate FROM status_history WHERE entityType = 'employee' AND entityId = ? ORDER BY startDate DESC LIMIT 1",
-            [employee.id]
-          );
-          const last = lastRes?.data?.[0] as { id: number; startDate: string; endDate?: string } | undefined;
-          if (last?.id) {
-            const end = last.endDate ? String(last.endDate).slice(0, 10) : null;
-            const durationDays = end ? Math.round((new Date(end).getTime() - new Date(actionDate).getTime()) / (1000 * 60 * 60 * 24)) : null;
-            await api.dbQuery(
-              'UPDATE status_history SET startDate = ?, durationDays = ? WHERE id = ?',
-              [actionDate, durationDays ?? 0, last.id]
-            );
-          }
-        }
-        await api.dbQuery(
-          `UPDATE employees SET status = ?, workBranchId = ?, profession = ?, professionKeys = ?, professionCustomTitle = ?, actualSalary = ?, loanType = ?, loanBranchId = ?, loanProfession = ?, loanSubStatus = ?, loanExpiryDate = ?, tempContractNumber = ?, loanSalary = ?, targetEntityName = ?, loanLeaveStartDate = ?, loanLeaveEndDate = ? WHERE id = ?`,
-          [
-            newStatus,
-            isTerminated ? null : (isInternalSeconded ? workBr : showWorkDetails ? workBr : null),
-            isTerminated ? null : (professionDisplay || null),
-            isTerminated ? null : JSON.stringify(professionKeys),
-            isTerminated ? null : (professionCustomTitle || null),
-            isTerminated ? null : (showWorkDetails || isInternalSeconded ? actSal : null),
-            isTerminated ? null : (newStatus === EmploymentStatus.SECONDED ? (loanType || null) : null),
-            isTerminated ? null : (newStatus === EmploymentStatus.SECONDED ? lnBr : null),
-            isTerminated ? null : (newStatus === EmploymentStatus.SECONDED ? (loanType === LoanType.INTERNAL ? (professionDisplay || null) : (loanProfession || null)) : null),
-            isTerminated ? null : (newStatus === EmploymentStatus.SECONDED ? lnSub : null),
-            isTerminated ? null : (newStatus === EmploymentStatus.SECONDED && loanExpiryDate ? loanExpiryDate : null),
-            isTerminated ? null : (newStatus === EmploymentStatus.SECONDED ? (tempContractNumber || null) : null),
-            isTerminated ? null : (newStatus === EmploymentStatus.SECONDED && lnSal ? lnSal : null),
-            isTerminated ? null : (newStatus === EmploymentStatus.SECONDED && loanType === LoanType.EXTERNAL ? (targetEntityName || null) : null),
-            loanLeaveStartVal,
-            loanLeaveEndVal,
-            employee.id,
-          ]
-        );
+        const res = await api.employeeStatusUpdate(sessionToken, employee.id, {
+          employeeUpdate,
+          statusChanged: false,
+          dateCorrection: { mainDateChanged, actionDate },
+          performedByUserId: user?.id ?? null,
+          performedByUsername: user?.username ?? user?.fullName ?? null,
+        });
+        if (!res.success) throw new Error(res.error || 'EMPLOYEE_STATUS_UPDATE_FAILED');
         const dateDetail = mainDateChanged
           ? `dateCorrection::leaveStart::${actionDate}`
           : `dateCorrection::loanLeave::${loanLeaveStartDate || ''}::${loanLeaveEndDate || ''}`;
@@ -307,57 +296,17 @@ export default function UpdateStatusModal({
       }
 
       // 1 و 2: تحديث status_history فقط عند تغيير الحالة (وليس عند تحديث الفرع/الراتب/الوظيفة فقط)
-      if (statusChanged) {
-        const lastRes = await api.dbQuery(
-          "SELECT id, startDate FROM status_history WHERE entityType = 'employee' AND entityId = ? ORDER BY startDate DESC LIMIT 1",
-          [employee.id]
-        );
-        const lastRecord = lastRes?.data?.[0] as { id?: number; startDate?: string } | undefined;
-        if (lastRecord?.startDate) {
-          const prevStart = String(lastRecord.startDate).slice(0, 10);
-          const start = new Date(prevStart);
-          const end = new Date(effectiveDate);
-          const durationDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-          await api.dbQuery('UPDATE status_history SET endDate = ?, durationDays = ? WHERE id = ?', [effectiveDate, durationDays, lastRecord.id]);
-        } else if (employee.status) {
-          await api.dbQuery(
-            `INSERT INTO status_history (entityType, entityId, status, startDate, endDate, durationDays, performedByUserId, performedByUsername)
-             VALUES ('employee', ?, ?, ?, ?, 0, ?, ?)`,
-            [employee.id, employee.status, effectiveDate, effectiveDate, user?.id ?? null, user?.username ?? user?.fullName ?? null]
-          );
-        }
-        await api.dbQuery(
-          `INSERT INTO status_history (entityType, entityId, status, startDate, performedByUserId, performedByUsername)
-           VALUES ('employee', ?, ?, ?, ?, ?)`,
-          [employee.id, newStatus, effectiveDate, user?.id ?? null, user?.username ?? user?.fullName ?? null]
-        );
-      }
+      const statusUpdateRes = await api.employeeStatusUpdate(sessionToken, employee.id, {
+        employeeUpdate,
+        statusChanged,
+        previousStatus: employee.status || null,
+        effectiveDate,
+        performedByUserId: user?.id ?? null,
+        performedByUsername: user?.username ?? user?.fullName ?? null,
+      });
+      if (!statusUpdateRes.success) throw new Error(statusUpdateRes.error || 'EMPLOYEE_STATUS_UPDATE_FAILED');
 
       // 3. تحديث employees (الفرع، الوظيفة، الراتب، إلخ.) — يعمل دائماً سواء تغيرت الحالة أم لا
-      const updateCols: string[] = ['status = ?', 'workBranchId = ?', 'profession = ?', 'professionKeys = ?', 'professionCustomTitle = ?', 'actualSalary = ?', 'loanType = ?', 'loanBranchId = ?', 'loanProfession = ?', 'loanSubStatus = ?', 'loanExpiryDate = ?', 'tempContractNumber = ?', 'loanSalary = ?', 'targetEntityName = ?', 'loanLeaveStartDate = ?', 'loanLeaveEndDate = ?'];
-      const updateVals: unknown[] = [
-        newStatus,
-        isTerminated ? null : (isInternalSeconded ? workBr : showWorkDetails ? workBr : null),
-        isTerminated ? null : (professionDisplay || null),
-        isTerminated ? null : JSON.stringify(professionKeys),
-        isTerminated ? null : (professionCustomTitle || null),
-        isTerminated ? null : (showWorkDetails || isInternalSeconded ? actSal : null),
-        isTerminated ? null : (newStatus === EmploymentStatus.SECONDED ? (loanType || null) : null),
-        isTerminated ? null : (newStatus === EmploymentStatus.SECONDED ? lnBr : null),
-        isTerminated ? null : (newStatus === EmploymentStatus.SECONDED ? (loanType === LoanType.INTERNAL ? (professionDisplay || null) : (loanProfession || null)) : null),
-        isTerminated ? null : (newStatus === EmploymentStatus.SECONDED ? lnSub : null),
-        isTerminated ? null : (newStatus === EmploymentStatus.SECONDED && loanExpiryDate ? loanExpiryDate : null),
-        isTerminated ? null : (newStatus === EmploymentStatus.SECONDED ? (tempContractNumber || null) : null),
-        isTerminated ? null : (newStatus === EmploymentStatus.SECONDED && lnSal ? lnSal : null),
-        isTerminated ? null : (newStatus === EmploymentStatus.SECONDED && loanType === LoanType.EXTERNAL ? (targetEntityName || null) : null),
-        loanLeaveStartVal,
-        loanLeaveEndVal,
-      ];
-      await api.dbQuery(
-        `UPDATE employees SET ${updateCols.join(', ')} WHERE id = ?`,
-        [...updateVals, employee.id]
-      );
-
       // 4. Save termination document
       if (newStatus === EmploymentStatus.TERMINATED && termDocPath && api.documentSave) {
         const parts = termDocPath.replace(/\\/g, '/').split('/');

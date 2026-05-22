@@ -160,12 +160,8 @@ export default function EmployerProfile() {
   const handleArchive = async () => {
     if (!employer) return;
     if (employer.status === 'archived') {
-      if (window.electronAPI?.archiveRestore) {
-        const res = await window.electronAPI.archiveRestore(sessionToken, 'employers', employer.id);
-        if (!res?.success) throw new Error(res?.error || 'RESTORE_FAILED');
-      } else {
-        await (window as any).electronAPI.employerRestore(employer.id);
-      }
+      const res = await window.electronAPI?.archiveRestore?.(sessionToken, 'employers', employer.id);
+      if (!res?.success) throw new Error(res?.error || 'RESTORE_FAILED');
       logActivity({
         performedByUserId: user?.id,
         performedByUsername: user?.username || 'unknown',
@@ -176,12 +172,8 @@ export default function EmployerProfile() {
         details: `restored::employer::${employer.fullName}::${user?.fullName || user?.username || ''}`,
       });
     } else {
-      if (window.electronAPI?.archiveRecord) {
-        const res = await window.electronAPI.archiveRecord(sessionToken, 'employers', employer.id);
-        if (!res?.success) throw new Error(res?.error || 'ARCHIVE_FAILED');
-      } else {
-        await (window as any).electronAPI.employerArchive(employer.id);
-      }
+      const res = await window.electronAPI?.archiveRecord?.(sessionToken, 'employers', employer.id);
+      if (!res?.success) throw new Error(res?.error || 'ARCHIVE_FAILED');
       logActivity({
         performedByUserId: user?.id,
         performedByUsername: user?.username || 'unknown',
@@ -197,12 +189,8 @@ export default function EmployerProfile() {
 
   const handleDelete = async () => {
     if (!employer) return;
-    if (window.electronAPI?.archiveDeletePermanent) {
-      const res = await window.electronAPI.archiveDeletePermanent(sessionToken, 'employers', employer.id);
-      if (!res?.success) throw new Error(res?.error || 'DELETE_FAILED');
-    } else {
-      await (window as any).electronAPI.employerDelete(employer.id);
-    }
+    const res = await window.electronAPI?.archiveDeletePermanent?.(sessionToken, 'employers', employer.id);
+    if (!res?.success) throw new Error(res?.error || 'DELETE_FAILED');
     navigate('/dashboard/employers');
   };
 

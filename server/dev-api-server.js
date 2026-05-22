@@ -11,7 +11,7 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const { sqliteToMysql } = require('./sqlite-to-mysql.js');
 const { dbAll, dbRun, pingDb, withTransaction } = require('./mysql-db.js');
-const { requirePermission } = require('./permission-middleware.js');
+const { requirePermission, requireAnyPermission } = require('./permission-middleware.js');
 const {
   resolveEffectivePermissions,
   clearAllPermissionCache,
@@ -119,9 +119,6 @@ const LEGACY_DB_QUERY_MUTATION_POLICIES = {
   housing_custom_fields: { INSERT: [['housing', 'create'], ['housing', 'edit']], UPDATE: [['housing', 'edit']], DELETE: [['housing', 'delete'], ['housing', 'edit']] },
 
   entities: { INSERT: [['entities', 'create']], UPDATE: [['entities', 'edit']], DELETE: [['entities', 'delete']] },
-  tax_payments: { INSERT: [['settings', 'edit'], ['entities', 'edit']], UPDATE: [['settings', 'edit'], ['entities', 'edit']], DELETE: [['settings', 'edit'], ['entities', 'edit']] },
-  tax_entity_branches: { INSERT: [['settings', 'edit'], ['entities', 'edit']], UPDATE: [['settings', 'edit'], ['entities', 'edit']], DELETE: [['settings', 'edit'], ['entities', 'edit'], ['branches', 'edit']] },
-
   documents: { INSERT: [['documents', 'create']], UPDATE: [['documents', 'edit'], ['documents', 'delete']], DELETE: [['documents', 'delete']] },
   notifications: {
     INSERT: [['settings', 'edit'], ['logs', 'view'], ['employees', 'edit'], ['branches', 'edit'], ['vehicles', 'edit'], ['phones', 'edit'], ['housing', 'edit'], ['employers', 'edit'], ['entities', 'edit']],
@@ -1427,6 +1424,98 @@ app.put('/api/employees/:id', requireAuth, requirePermission('employees', 'edit'
   }
 });
 
+app.put('/api/employees/:id/status', requireAuth, requireAnyPermission([['employees', 'action.changeStatus'], ['employees', 'edit']]), async (req, res) => {
+  const id = safeInt(req.params.id);
+  if (!id) return res.status(400).json({ success: false, error: 'INVALID_ID' });
+  const d = req.body || {};
+  const u = d.employeeUpdate || {};
+  if (!u.status) return res.status(400).json({ success: false, error: 'INVALID_REQUEST' });
+
+  const updateValues = [
+    String(u.status),
+    u.workBranchId ?? null,
+    u.profession ?? null,
+    u.professionKeys ?? null,
+    u.professionCustomTitle ?? null,
+    u.actualSalary ?? null,
+    u.loanType ?? null,
+    u.loanBranchId ?? null,
+    u.loanProfession ?? null,
+    u.loanSubStatus ?? null,
+    u.loanExpiryDate ?? null,
+    u.tempContractNumber ?? null,
+    u.loanSalary ?? null,
+    u.targetEntityName ?? null,
+    u.loanLeaveStartDate ?? null,
+    u.loanLeaveEndDate ?? null,
+  ];
+
+  try {
+    await withTransaction(async (tx) => {
+      const dateCorrection = d.dateCorrection || null;
+      if (dateCorrection?.mainDateChanged && dateCorrection.actionDate) {
+        const lastRows = await tx.all(
+          "SELECT id, startDate, endDate FROM status_history WHERE entityType = 'employee' AND entityId = ? ORDER BY startDate DESC LIMIT 1",
+          [id]
+        );
+        const last = lastRows[0];
+        if (last?.id) {
+          const endDate = last.endDate ? String(last.endDate).slice(0, 10) : null;
+          const durationDays = endDate
+            ? Math.round((new Date(endDate).getTime() - new Date(dateCorrection.actionDate).getTime()) / (1000 * 60 * 60 * 24))
+            : 0;
+          await tx.run(
+            'UPDATE status_history SET startDate = ?, durationDays = ? WHERE id = ?',
+            [String(dateCorrection.actionDate), durationDays, last.id]
+          );
+        }
+      }
+
+      if (d.statusChanged) {
+        const effectiveDate = String(d.effectiveDate || '').slice(0, 10);
+        if (!effectiveDate) throw new Error('EFFECTIVE_DATE_REQUIRED');
+        const actorId = d.performedByUserId ?? req.authSession?.userId ?? null;
+        const actorName = d.performedByUsername ?? null;
+        const lastRows = await tx.all(
+          "SELECT id, startDate FROM status_history WHERE entityType = 'employee' AND entityId = ? ORDER BY startDate DESC LIMIT 1",
+          [id]
+        );
+        const lastRecord = lastRows[0];
+        if (lastRecord?.startDate) {
+          const prevStart = String(lastRecord.startDate).slice(0, 10);
+          const durationDays = Math.round((new Date(effectiveDate).getTime() - new Date(prevStart).getTime()) / (1000 * 60 * 60 * 24));
+          await tx.run('UPDATE status_history SET endDate = ?, durationDays = ? WHERE id = ?', [effectiveDate, durationDays, lastRecord.id]);
+        } else if (d.previousStatus) {
+          await tx.run(
+            `INSERT INTO status_history (entityType, entityId, status, startDate, endDate, durationDays, performedByUserId, performedByUsername)
+             VALUES ('employee', ?, ?, ?, ?, 0, ?, ?)`,
+            [id, String(d.previousStatus), effectiveDate, effectiveDate, actorId, actorName]
+          );
+        }
+        await tx.run(
+          `INSERT INTO status_history (entityType, entityId, status, startDate, performedByUserId, performedByUsername)
+           VALUES ('employee', ?, ?, ?, ?, ?)`,
+          [id, String(u.status), effectiveDate, actorId, actorName]
+        );
+      }
+
+      await tx.run(
+        `UPDATE employees SET
+           status = ?, workBranchId = ?, profession = ?, professionKeys = ?, professionCustomTitle = ?,
+           actualSalary = ?, loanType = ?, loanBranchId = ?, loanProfession = ?, loanSubStatus = ?,
+           loanExpiryDate = ?, tempContractNumber = ?, loanSalary = ?, targetEntityName = ?,
+           loanLeaveStartDate = ?, loanLeaveEndDate = ?, updatedAt = NOW()
+         WHERE id = ?`,
+        [...updateValues, id]
+      );
+    });
+    broadcastDataChange('updated', 'employees', id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
 app.delete('/api/employees/:id', requireAuth, requirePermission('employees', 'archive'), async (req, res) => {
   const id = safeInt(req.params.id);
   if (!id) return res.status(400).json({ success: false, error: 'INVALID_ID' });
@@ -2054,7 +2143,10 @@ app.delete('/api/settings/:key', requireAuth, requirePermission('settings', 'del
 
 // ── Tax (payments + entity-branches) ─────────────────────────────────────────
 
-app.get('/api/tax/payments', requireAuth, requirePermission('settings', 'view'), async (req, res) => {
+const requireTaxView = requireAnyPermission([['settings', 'view'], ['entities', 'view']]);
+const requireTaxEdit = requireAnyPermission([['settings', 'edit'], ['entities', 'edit']]);
+
+app.get('/api/tax/payments', requireAuth, requireTaxView, async (req, res) => {
   try {
     let q = `SELECT id, entityId, type, financialYear, quarter, periodFrom, periodTo, amount, paymentDate
              FROM tax_payments`;
@@ -2081,7 +2173,7 @@ app.get('/api/tax/payments', requireAuth, requirePermission('settings', 'view'),
   }
 });
 
-app.get('/api/tax/payments/:id', requireAuth, requirePermission('settings', 'view'), async (req, res) => {
+app.get('/api/tax/payments/:id', requireAuth, requireTaxView, async (req, res) => {
   const id = safeInt(req.params.id);
   if (!id) return res.status(400).json({ success: false, error: 'INVALID_ID' });
   try {
@@ -2097,7 +2189,7 @@ app.get('/api/tax/payments/:id', requireAuth, requirePermission('settings', 'vie
   }
 });
 
-app.post('/api/tax/payments', requireAuth, requirePermission('settings', 'edit'), async (req, res) => {
+app.post('/api/tax/payments', requireAuth, requireTaxEdit, async (req, res) => {
   try {
     const d = req.body || {};
     if (!d.entityId || !d.type || !d.financialYear || d.amount == null || !d.paymentDate) {
@@ -2123,7 +2215,7 @@ app.post('/api/tax/payments', requireAuth, requirePermission('settings', 'edit')
   }
 });
 
-app.put('/api/tax/payments/:id', requireAuth, requirePermission('settings', 'edit'), async (req, res) => {
+app.put('/api/tax/payments/:id', requireAuth, requireTaxEdit, async (req, res) => {
   const id = safeInt(req.params.id);
   if (!id) return res.status(400).json({ success: false, error: 'INVALID_ID' });
   try {
@@ -2157,7 +2249,7 @@ app.put('/api/tax/payments/:id', requireAuth, requirePermission('settings', 'edi
   }
 });
 
-app.delete('/api/tax/payments/:id', requireAuth, requirePermission('settings', 'edit'), async (req, res) => {
+app.delete('/api/tax/payments/:id', requireAuth, requireTaxEdit, async (req, res) => {
   const id = safeInt(req.params.id);
   if (!id) return res.status(400).json({ success: false, error: 'INVALID_ID' });
   try {
@@ -2168,7 +2260,7 @@ app.delete('/api/tax/payments/:id', requireAuth, requirePermission('settings', '
   }
 });
 
-app.get('/api/tax/entity-branches', requireAuth, requirePermission('settings', 'view'), async (req, res) => {
+app.get('/api/tax/entity-branches', requireAuth, requireTaxView, async (req, res) => {
   const entityId = req.query.entityId ? Number(req.query.entityId) : 0;
   if (!entityId) return res.status(400).json({ success: false, error: 'ENTITY_ID_REQUIRED' });
   try {
@@ -2186,7 +2278,7 @@ app.get('/api/tax/entity-branches', requireAuth, requirePermission('settings', '
   }
 });
 
-app.post('/api/tax/entity-branches', requireAuth, requirePermission('settings', 'edit'), async (req, res) => {
+app.post('/api/tax/entity-branches', requireAuth, requireTaxEdit, async (req, res) => {
   try {
     const d = req.body || {};
     if (!d.entityId || !d.branchId) return res.status(400).json({ success: false, error: 'INVALID_REQUEST' });
@@ -2201,7 +2293,32 @@ app.post('/api/tax/entity-branches', requireAuth, requirePermission('settings', 
   }
 });
 
-app.delete('/api/tax/entity-branches', requireAuth, requirePermission('settings', 'edit'), async (req, res) => {
+app.put('/api/tax/entity-branches/:entityId', requireAuth, requireTaxEdit, async (req, res) => {
+  const entityId = safeInt(req.params.entityId);
+  if (!entityId) return res.status(400).json({ success: false, error: 'INVALID_ID' });
+  try {
+    const rawBranchIds = Array.isArray(req.body?.branchIds) ? req.body.branchIds : [];
+    const branchIds = [...new Set(rawBranchIds
+      .map((x) => Number(x))
+      .filter((x) => Number.isInteger(x) && x > 0))];
+
+    await withTransaction(async (tx) => {
+      await tx.run('DELETE FROM tax_entity_branches WHERE entityId = ?', [entityId]);
+      for (const branchId of branchIds) {
+        await tx.run(
+          `INSERT INTO tax_entity_branches (entityId, branchId) VALUES (?, ?)
+           ON DUPLICATE KEY UPDATE entityId = entityId`,
+          [entityId, branchId]
+        );
+      }
+    });
+    res.json({ success: true, data: { entityId, branchIds } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+app.delete('/api/tax/entity-branches', requireAuth, requireTaxEdit, async (req, res) => {
   try {
     const d = req.body || {};
     if (!d.entityId || !d.branchId) return res.status(400).json({ success: false, error: 'INVALID_REQUEST' });

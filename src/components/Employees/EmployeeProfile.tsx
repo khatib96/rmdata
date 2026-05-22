@@ -215,14 +215,10 @@ export default function EmployeeProfile() {
   }, [user, employeeId, updateLinkedEntityImagePath]);
 
   const handleArchive = async () => {
-    if (!window.electronAPI?.archiveRecord && !window.electronAPI?.dbQuery) return;
+    if (!window.electronAPI?.archiveRecord) return;
     try {
-      if (window.electronAPI.archiveRecord) {
-        const res = await window.electronAPI.archiveRecord(sessionToken, 'employees', employeeId);
-        if (!res?.success) throw new Error(res?.error || 'ARCHIVE_FAILED');
-      } else if (window.electronAPI.dbQuery) {
-        await window.electronAPI.dbQuery('UPDATE employees SET status = ? WHERE id = ?', ['archived', employeeId]);
-      }
+      const res = await window.electronAPI.archiveRecord(sessionToken, 'employees', employeeId);
+      if (!res?.success) throw new Error(res?.error || 'ARCHIVE_FAILED');
       const label = employee?.name || employee?.code || `موظف ${employeeId}`;
       await logActivity({
         module: 'archive',
@@ -242,17 +238,10 @@ export default function EmployeeProfile() {
   };
 
   const handleDelete = async () => {
-    if (!window.electronAPI?.archiveDeletePermanent && !window.electronAPI?.dbQuery) return;
+    if (!window.electronAPI?.archiveDeletePermanent) return;
     try {
-      if (window.electronAPI.archiveDeletePermanent) {
-        const res = await window.electronAPI.archiveDeletePermanent(sessionToken, 'employees', employeeId);
-        if (!res?.success) throw new Error(res?.error || 'DELETE_FAILED');
-      } else if (window.electronAPI.dbQuery) {
-        await window.electronAPI.dbQuery('DELETE FROM status_history WHERE entityType = ? AND entityId = ?', ['employee', employeeId]);
-        await window.electronAPI.dbQuery('UPDATE vehicles SET responsibleEmployeeId = NULL WHERE responsibleEmployeeId = ?', [employeeId]);
-        await window.electronAPI.dbQuery('DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['employee', employeeId]);
-        await window.electronAPI.dbQuery('DELETE FROM employees WHERE id = ?', [employeeId]);
-      }
+      const res = await window.electronAPI.archiveDeletePermanent(sessionToken, 'employees', employeeId);
+      if (!res?.success) throw new Error(res?.error || 'DELETE_FAILED');
       setDeleteConfirm(false);
       navigate('/dashboard/employees');
     } catch (e) {

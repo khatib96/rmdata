@@ -1,6 +1,6 @@
 # AI_MEMORY - RMDATA System
 
-آخر تحديث: 2026-05-21
+آخر تحديث: 2026-05-22
 الغرض: هذا الملف هو ذاكرة عمل مشتركة بين صاحب المشروع، المبرمجين، وأدوات الذكاء الاصطناعي. يتم تحديثه بعد كل جلسة مهمة حتى لا نعيد تحليل المشروع من الصفر.
 
 > المرجع الأساسي الحالي: `docs/RMDATA_MASTER_PLAN_2026.md`.
@@ -477,6 +477,41 @@ RMDATA هو نظام إدارة داخلي لشركة الرداء الموحد.
 
 - تحويل مسارات الضرائب والمدفوعات، ثم تقليل بقايا `employer:*` الخاصة بالإنشاء/التعديل والربط.
 
+### 2026-05-22 - المرحلة C: إغلاق الضرائب وإزالة fallbacks القديمة
+
+ما تم:
+
+- إضافة `requireAnyPermission` في Node لاستخدام صلاحية بديلة عند الحاجة.
+- جعل مسارات الضرائب في Node تقبل `settings.*` أو `entities.*` حسب نوع العملية.
+- إضافة `PUT /api/tax/entity-branches/:entityId` لاستبدال ربط فروع الكيان داخل transaction.
+- إضافة Electron/Browser API methods:
+  - `taxPaymentCreate`
+  - `taxPaymentDelete`
+  - `taxEntityBranchesReplace`
+- تعديل `EntityProfileTaxTabs` و `AddEntityModal` لإيقاف `INSERT/DELETE` المباشر على `tax_payments` و `tax_entity_branches`.
+- إزالة `tax_payments` و `tax_entity_branches` من allowlist المؤقتة للكتابة عبر `dbQuery`.
+- إضافة `PUT /api/employees/:id/status` و `employee:statusUpdate` وتحويل `UpdateStatusModal` بعيداً عن `UPDATE employees` و `INSERT/UPDATE status_history` المباشر.
+- إزالة fallbacks القديمة من الأرشفة/الاسترجاع/الحذف النهائي في بروفايلات الموارد الأساسية و `Archive`.
+- تعليم Phase C كمنجزة في `docs/RMDATA_MASTER_PLAN_2026.md`.
+
+الأوامر التي شغلت:
+
+- `npm run typecheck`
+- `.\node_modules\.bin\tsc.cmd -p electron --noEmit`
+- `node --check server/dev-api-server.js`
+- `node --check server/permission-middleware.js`
+- `npm run test:sqlite-mysql`
+- `git diff --check`
+
+نتائج التحقق:
+
+- كل الفحوصات نجحت.
+- لا توجد بقايا Phase C مفتوحة. بقايا `dbQuery` الواسعة في شاشات الإنشاء/التعديل تنتقل للمرحلة D/G لأنها ليست من مسارات Phase C عالية الخطورة المغلقة هنا.
+
+الخطوة التالية:
+
+- المرحلة D: تثبيت Node API كمسار التطوير الوحيد وبدء نقل بقايا العمليات الواسعة من `dbQuery` بدون إضافة أي شيء جديد إلى PHP.
+
 ## 8. قالب تسجيل جلسة جديدة
 
 عند نهاية كل جلسة، أضف مدخلاً بهذا الشكل:
@@ -515,8 +550,8 @@ RMDATA هو نظام إدارة داخلي لشركة الرداء الموحد.
 
 ## 9. الحالة الحالية المختصرة
 
-الحالة: مشروع عامل على أساس v1.4.1؛ `typecheck` أخضر بعد المرحلة B.
+الحالة: مشروع عامل على أساس v1.4.1؛ `typecheck` أخضر وPhase C مغلقة.
 المرجع الحالي: `docs/RMDATA_MASTER_PLAN_2026.md`.
-المرحلة القادمة: المرحلة C - تشديد `db/query` قبل V2.
-أهم خطر متبقٍ: `db/query` ما زال Legacy واسع الاستخدام.
+المرحلة القادمة: المرحلة D - Node API فقط وترك PHP تدريجياً، مع نقل بقايا الإنشاء/التعديل الكبيرة من `dbQuery`.
+أهم خطر متبقٍ: `db/query` ما زال Legacy لبعض شاشات الإنشاء/التعديل الواسعة، ولا يستخدم لأي ميزة V2 جديدة.
 أهم قرار: Node فقط للميزات الجديدة، وPHP Legacy، ولا بداية V2 قبل تشديد `db/query` وتنظيم migrations والصلاحيات.

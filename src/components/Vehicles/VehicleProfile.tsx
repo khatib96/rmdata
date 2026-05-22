@@ -224,14 +224,10 @@ export default function VehicleProfile() {
   const performerLabel = user ? `${user.fullName || user.username}${user.entityId != null ? ` (${user.entityId})` : ''}` : t('vehicles.system');
 
   const handleArchive = async () => {
-    if (!window.electronAPI?.archiveRecord && !window.electronAPI?.dbQuery) return;
+    if (!window.electronAPI?.archiveRecord) return;
     try {
-      if (window.electronAPI.archiveRecord) {
-        const res = await window.electronAPI.archiveRecord(sessionToken, 'vehicles', vehicleId);
-        if (!res?.success) throw new Error(res?.error || 'ARCHIVE_FAILED');
-      } else if (window.electronAPI.dbQuery) {
-        await window.electronAPI.dbQuery('UPDATE vehicles SET status = ? WHERE id = ?', ['archived', vehicleId]);
-      }
+      const res = await window.electronAPI.archiveRecord(sessionToken, 'vehicles', vehicleId);
+      if (!res?.success) throw new Error(res?.error || 'ARCHIVE_FAILED');
       const label = vehicle?.plateNumber || vehicle?.code || `مركبة ${vehicleId}`;
       await logActivity({
         module: 'archive',
@@ -251,16 +247,10 @@ export default function VehicleProfile() {
   };
 
   const handleDelete = async () => {
-    if (!window.electronAPI?.archiveDeletePermanent && !window.electronAPI?.dbQuery) return;
+    if (!window.electronAPI?.archiveDeletePermanent) return;
     try {
-      if (window.electronAPI.archiveDeletePermanent) {
-        const res = await window.electronAPI.archiveDeletePermanent(sessionToken, 'vehicles', vehicleId);
-        if (!res?.success) throw new Error(res?.error || 'DELETE_FAILED');
-      } else if (window.electronAPI.dbQuery) {
-        await window.electronAPI.dbQuery('DELETE FROM vehicle_custom_fields WHERE vehicleId = ?', [vehicleId]);
-        await window.electronAPI.dbQuery('DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['vehicle', vehicleId]);
-        await window.electronAPI.dbQuery('DELETE FROM vehicles WHERE id = ?', [vehicleId]);
-      }
+      const res = await window.electronAPI.archiveDeletePermanent(sessionToken, 'vehicles', vehicleId);
+      if (!res?.success) throw new Error(res?.error || 'DELETE_FAILED');
       setDeleteConfirm(false);
       navigate('/dashboard/vehicles');
     } catch (e) {
