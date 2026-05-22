@@ -137,7 +137,6 @@ export default function EntityProfile() {
       } else {
         await dbQuery('UPDATE entities SET status = ? WHERE id = ?', ['archived', entityId], { skipCache: true });
       }
-      await dbQuery('DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['entity', entityId], { skipCache: true });
       const label = entity?.entityNickname || entity?.name || `كيان ${entityId}`;
       await logActivity({
         module: 'archive',
@@ -159,9 +158,14 @@ export default function EntityProfile() {
 
   const handleDelete = async () => {
     try {
-      await dbQuery('DELETE FROM tax_payments WHERE entityId = ?', [entityId], { skipCache: true });
-      await dbQuery('DELETE FROM tax_entity_branches WHERE entityId = ?', [entityId], { skipCache: true });
-      await dbQuery('DELETE FROM entities WHERE id = ?', [entityId], { skipCache: true });
+      if (window.electronAPI?.archiveDeletePermanent) {
+        const res = await window.electronAPI.archiveDeletePermanent(sessionToken, 'entities', entityId);
+        if (!res?.success) throw new Error(res?.error || 'DELETE_FAILED');
+      } else {
+        await dbQuery('DELETE FROM tax_payments WHERE entityId = ?', [entityId], { skipCache: true });
+        await dbQuery('DELETE FROM tax_entity_branches WHERE entityId = ?', [entityId], { skipCache: true });
+        await dbQuery('DELETE FROM entities WHERE id = ?', [entityId], { skipCache: true });
+      }
       setDeleteConfirm(false);
       invalidateDbCache();
       navigate('/dashboard/entities');

@@ -111,15 +111,27 @@
   - Node: `POST /api/housing/:id/archive`
   - Node: `POST /api/phones/:id/archive`
   - Node: `POST /api/entities/:id/archive`
+  - Node: `POST /api/employers/:id/archive`
   - Node: `POST /api/employees/:id/restore`
   - Node: `POST /api/branches/:id/restore`
   - Node: `POST /api/vehicles/:id/restore`
   - Node: `POST /api/housing/:id/restore`
   - Node: `POST /api/phones/:id/restore`
   - Node: `POST /api/entities/:id/restore`
+  - Node: `POST /api/employers/:id/restore`
   - Electron IPC: `archive:archive`
   - Electron IPC: `archive:restore`
   - الواجهة تستخدم `archiveRecord` و `archiveRestore` بدلاً من `UPDATE ... SET status = ...` المباشر.
+- الحذف النهائي للموارد الأساسية:
+  - Node: `DELETE /api/employees/:id/permanent`
+  - Node: `DELETE /api/branches/:id/permanent`
+  - Node: `DELETE /api/vehicles/:id/permanent`
+  - Node: `DELETE /api/housing/:id/permanent`
+  - Node: `DELETE /api/phones/:id/permanent`
+  - Node: `DELETE /api/entities/:id/permanent`
+  - Node: `DELETE /api/employers/:id/permanent`
+  - Electron IPC: `archive:deletePermanent`
+  - الواجهة تستخدم `archiveDeletePermanent` بدلاً من سلاسل `DELETE FROM ...` المباشرة في بروفايلات الموارد الأساسية.
 
 ## 6. قواعد إضافة أي جدول جديد
 

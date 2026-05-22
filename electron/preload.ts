@@ -51,6 +51,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('archive:archive', { sessionToken: sessionToken ?? undefined, resource, id }) as Promise<{ success: boolean; data?: { entityType: string }; error?: string }>,
   archiveRestore: (sessionToken: string | null | undefined, resource: string, id: number) =>
     ipcRenderer.invoke('archive:restore', { sessionToken: sessionToken ?? undefined, resource, id }) as Promise<{ success: boolean; data?: { entityType: string }; error?: string }>,
+  archiveDeletePermanent: (sessionToken: string | null | undefined, resource: string, id: number) =>
+    ipcRenderer.invoke('archive:deletePermanent', { sessionToken: sessionToken ?? undefined, resource, id }) as Promise<{ success: boolean; data?: { entityType: string }; error?: string }>,
   authLogin: (username: string, password: string) =>
     ipcRenderer.invoke('auth:login', username, password),
   devicePing: (token: string, gpsCoords: string | null, locationCity?: string | null) =>

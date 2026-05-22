@@ -251,11 +251,16 @@ export default function VehicleProfile() {
   };
 
   const handleDelete = async () => {
-    if (!window.electronAPI?.dbQuery) return;
+    if (!window.electronAPI?.archiveDeletePermanent && !window.electronAPI?.dbQuery) return;
     try {
-      await window.electronAPI.dbQuery('DELETE FROM vehicle_custom_fields WHERE vehicleId = ?', [vehicleId]);
-      await window.electronAPI.dbQuery('DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['vehicle', vehicleId]);
-      await window.electronAPI.dbQuery('DELETE FROM vehicles WHERE id = ?', [vehicleId]);
+      if (window.electronAPI.archiveDeletePermanent) {
+        const res = await window.electronAPI.archiveDeletePermanent(sessionToken, 'vehicles', vehicleId);
+        if (!res?.success) throw new Error(res?.error || 'DELETE_FAILED');
+      } else if (window.electronAPI.dbQuery) {
+        await window.electronAPI.dbQuery('DELETE FROM vehicle_custom_fields WHERE vehicleId = ?', [vehicleId]);
+        await window.electronAPI.dbQuery('DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['vehicle', vehicleId]);
+        await window.electronAPI.dbQuery('DELETE FROM vehicles WHERE id = ?', [vehicleId]);
+      }
       setDeleteConfirm(false);
       navigate('/dashboard/vehicles');
     } catch (e) {

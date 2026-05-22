@@ -56,6 +56,16 @@ if (typeof window !== 'undefined' && !window.electronAPI?.dbQuery) {
     return { res, json };
   }
 
+  async function deleteJson(path: string) {
+    const url = `${apiBase}${path}`;
+    const headers: Record<string, string> = {};
+    const tok = getApiSessionToken();
+    if (tok) headers.Authorization = `Bearer ${tok}`;
+    const res = await fetch(url, { method: 'DELETE', headers });
+    const json = await res.json().catch(() => ({}));
+    return { res, json };
+  }
+
   async function getJson(path: string) {
     const url = `${apiBase}${path}`;
     const headers: Record<string, string> = {};
@@ -86,6 +96,7 @@ if (typeof window !== 'undefined' && !window.electronAPI?.dbQuery) {
     | 'permissionsSetUserPermissions'
     | 'archiveRecord'
     | 'archiveRestore'
+    | 'archiveDeletePermanent'
     | 'authLogin'
     | 'authChangeOwnPassword'
     | 'documentList'
@@ -128,6 +139,16 @@ if (typeof window !== 'undefined' && !window.electronAPI?.dbQuery) {
     archiveRecord: async (_sessionToken: string | null | undefined, resource: ArchiveRestoreResource, id: number) => {
       try {
         const { res, json } = await postJson(`/api/${resource}/${id}/archive`, {});
+        if (!res.ok) return { success: false, error: json.error || res.statusText };
+        return { success: json.success !== false, data: json.data, error: json.error };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { success: false, error: msg };
+      }
+    },
+    archiveDeletePermanent: async (_sessionToken: string | null | undefined, resource: ArchiveRestoreResource, id: number) => {
+      try {
+        const { res, json } = await deleteJson(`/api/${resource}/${id}/permanent`);
         if (!res.ok) return { success: false, error: json.error || res.statusText };
         return { success: json.success !== false, data: json.data, error: json.error };
       } catch (e) {

@@ -427,6 +427,7 @@ RMDATA هو نظام إدارة داخلي لشركة الرداء الموحد.
   - `POST /api/housing/:id/archive`
   - `POST /api/phones/:id/archive`
   - `POST /api/entities/:id/archive`
+  - `POST /api/employers/:id/archive`
 - إضافة Node endpoints لاسترجاع السجلات المؤرشفة:
   - `POST /api/employees/:id/restore`
   - `POST /api/branches/:id/restore`
@@ -434,6 +435,7 @@ RMDATA هو نظام إدارة داخلي لشركة الرداء الموحد.
   - `POST /api/housing/:id/restore`
   - `POST /api/phones/:id/restore`
   - `POST /api/entities/:id/restore`
+  - `POST /api/employers/:id/restore`
 - إضافة Electron IPC:
   - `archive:archive`
   - `archive:restore`
@@ -444,6 +446,36 @@ RMDATA هو نظام إدارة داخلي لشركة الرداء الموحد.
 الخطوة التالية:
 
 - تحويل مسار خطر آخر من `db/query`، والأولوية الآن: الحذف النهائي للسجلات أو إدارة المستخدمين أو الضرائب.
+
+### 2026-05-22 - المرحلة C: تحويل الحذف النهائي للموارد الأساسية إلى API
+
+ما تم:
+
+- إضافة Node endpoints للحذف النهائي:
+  - `DELETE /api/employees/:id/permanent`
+  - `DELETE /api/branches/:id/permanent`
+  - `DELETE /api/vehicles/:id/permanent`
+  - `DELETE /api/housing/:id/permanent`
+  - `DELETE /api/phones/:id/permanent`
+  - `DELETE /api/entities/:id/permanent`
+  - `DELETE /api/employers/:id/permanent`
+- إضافة Electron IPC:
+  - `archive:deletePermanent`
+- تعديل بروفايلات الموارد الأساسية لاستخدام `archiveDeletePermanent` بدلاً من سلاسل `DELETE FROM ...` المباشرة.
+- إبقاء تنظيف ملفات المستندات في الواجهة للهواتف والسكن قبل حذف السجل، حتى لا يتغير سلوك حذف الملفات.
+- تحديث `docs/RMDATA_MASTER_PLAN_2026.md` و `docs/db_query_inventory_phase_c.md` بعلامات الإنجاز.
+
+التحقق:
+
+- `npm run typecheck` نجح.
+- `.\node_modules\.bin\tsc.cmd -p electron --noEmit` نجح.
+- `node --check server/dev-api-server.js` نجح.
+- `npm run test:sqlite-mysql` نجح.
+- `git diff --check` نجح.
+
+الخطوة التالية:
+
+- تحويل مسارات الضرائب والمدفوعات، ثم تقليل بقايا `employer:*` الخاصة بالإنشاء/التعديل والربط.
 
 ## 8. قالب تسجيل جلسة جديدة
 

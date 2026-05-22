@@ -965,10 +965,73 @@ async function archiveResource(req, res, config) {
     const existing = await dbAll(`SELECT id FROM ${config.table} WHERE id = ? LIMIT 1`, [id]);
     if (!existing.length) return res.status(404).json({ success: false, error: 'NOT_FOUND' });
     await dbRun(`UPDATE ${config.table} SET status = 'archived', updatedAt = NOW() WHERE id = ?`, [id]);
+    if (config.clearNotificationsOnArchive) {
+      await dbRun('DELETE FROM notifications WHERE entityType = ? AND entityId = ?', [config.entityType, id]);
+    }
     broadcastDataChange('deleted', config.resource, id);
     res.json({ success: true, data: { entityType: config.entityType } });
   } catch (err) {
     res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+}
+
+async function deletePermanentResource(req, res, config) {
+  const id = safeInt(req.params.id);
+  if (!id) return res.status(400).json({ success: false, error: 'INVALID_ID' });
+  try {
+    await withTransaction(async (tx) => {
+      const existing = await tx.all(`SELECT id FROM ${config.table} WHERE id = ? LIMIT 1`, [id]);
+      if (!existing.length) {
+        const err = new Error('NOT_FOUND');
+        err.statusCode = 404;
+        throw err;
+      }
+
+      if (config.resource === 'employees') {
+        await tx.run('DELETE FROM status_history WHERE entityType = ? AND entityId = ?', ['employee', id]);
+        await tx.run('UPDATE vehicles SET responsibleEmployeeId = NULL WHERE responsibleEmployeeId = ?', [id]);
+        await tx.run('DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['employee', id]);
+      } else if (config.resource === 'branches') {
+        await tx.run('DELETE FROM tax_entity_branches WHERE branchId = ?', [id]);
+        await tx.run('DELETE FROM branch_custom_fields WHERE branchId = ?', [id]);
+        await tx.run('DELETE FROM branch_establishments WHERE branchId = ?', [id]);
+        const leases = await tx.all('SELECT id FROM branch_leases WHERE branchId = ?', [id]);
+        for (const lease of leases) {
+          await tx.run('DELETE FROM lease_installments WHERE leaseId = ?', [lease.id]);
+        }
+        await tx.run('DELETE FROM branch_leases WHERE branchId = ?', [id]);
+        await tx.run('DELETE FROM branch_licenses WHERE branchId = ?', [id]);
+        await tx.run('UPDATE employees SET workBranchId = NULL WHERE workBranchId = ?', [id]);
+        await tx.run('DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['branch', id]);
+      } else if (config.resource === 'vehicles') {
+        await tx.run('DELETE FROM vehicle_custom_fields WHERE vehicleId = ?', [id]);
+        await tx.run('DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['vehicle', id]);
+      } else if (config.resource === 'phones') {
+        await tx.run('DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['phone', id]);
+      } else if (config.resource === 'housing') {
+        await tx.run('DELETE FROM documents WHERE entityType = ? AND entityId = ?', ['housing', id]);
+        await tx.run('UPDATE phones SET assignedHousingId = NULL WHERE assignedHousingId = ?', [id]);
+        await tx.run('DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['housing', id]);
+        await tx.run('DELETE FROM housing_installments WHERE housingId = ?', [id]);
+        await tx.run('DELETE FROM housing_occupants WHERE housingUnitId = ?', [id]);
+        await tx.run('DELETE FROM housing_custom_fields WHERE housingUnitId = ?', [id]);
+      } else if (config.resource === 'entities') {
+        await tx.run('DELETE FROM tax_payments WHERE entityId = ?', [id]);
+        await tx.run('DELETE FROM tax_entity_branches WHERE entityId = ?', [id]);
+        await tx.run('DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['entity', id]);
+      } else if (config.resource === 'employers') {
+        await tx.run('DELETE FROM branch_employers WHERE employerId = ?', [id]);
+        await tx.run('UPDATE phones SET assignedEmployerId = NULL WHERE assignedEmployerId = ?', [id]);
+        await tx.run('DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['employer', id]);
+      }
+
+      await tx.run(`DELETE FROM ${config.table} WHERE id = ?`, [id]);
+    });
+    broadcastDataChange('deleted', config.resource, id);
+    res.json({ success: true, data: { entityType: config.entityType } });
+  } catch (err) {
+    const status = err && err.statusCode ? err.statusCode : 500;
+    res.status(status).json({ success: false, error: err instanceof Error ? err.message : String(err) });
   }
 }
 
@@ -977,7 +1040,7 @@ app.post('/api/employees/:id/archive', requireAuth, requirePermission('employees
 );
 
 app.post('/api/branches/:id/archive', requireAuth, requirePermission('branches', 'edit'), (req, res) =>
-  archiveResource(req, res, { table: 'branches', resource: 'branches', entityType: 'branch' })
+  archiveResource(req, res, { table: 'branches', resource: 'branches', entityType: 'branch', clearNotificationsOnArchive: true })
 );
 
 app.post('/api/vehicles/:id/archive', requireAuth, requirePermission('vehicles', 'edit'), (req, res) =>
@@ -993,7 +1056,11 @@ app.post('/api/phones/:id/archive', requireAuth, requirePermission('phones', 'ed
 );
 
 app.post('/api/entities/:id/archive', requireAuth, requirePermission('entities', 'edit'), (req, res) =>
-  archiveResource(req, res, { table: 'entities', resource: 'entities', entityType: 'entity' })
+  archiveResource(req, res, { table: 'entities', resource: 'entities', entityType: 'entity', clearNotificationsOnArchive: true })
+);
+
+app.post('/api/employers/:id/archive', requireAuth, requirePermission('employers', 'edit'), (req, res) =>
+  archiveResource(req, res, { table: 'employers', resource: 'employers', entityType: 'employer', clearNotificationsOnArchive: true })
 );
 
 app.post('/api/employees/:id/restore', requireAuth, requirePermission('employees', 'edit'), (req, res) =>
@@ -1018,6 +1085,38 @@ app.post('/api/phones/:id/restore', requireAuth, requirePermission('phones', 'ed
 
 app.post('/api/entities/:id/restore', requireAuth, requirePermission('entities', 'edit'), (req, res) =>
   restoreArchivedResource(req, res, { table: 'entities', resource: 'entities', entityType: 'entity' })
+);
+
+app.post('/api/employers/:id/restore', requireAuth, requirePermission('employers', 'edit'), (req, res) =>
+  restoreArchivedResource(req, res, { table: 'employers', resource: 'employers', entityType: 'employer' })
+);
+
+app.delete('/api/employees/:id/permanent', requireAuth, requirePermission('employees', 'delete'), (req, res) =>
+  deletePermanentResource(req, res, { table: 'employees', resource: 'employees', entityType: 'employee' })
+);
+
+app.delete('/api/branches/:id/permanent', requireAuth, requirePermission('branches', 'delete'), (req, res) =>
+  deletePermanentResource(req, res, { table: 'branches', resource: 'branches', entityType: 'branch' })
+);
+
+app.delete('/api/vehicles/:id/permanent', requireAuth, requirePermission('vehicles', 'delete'), (req, res) =>
+  deletePermanentResource(req, res, { table: 'vehicles', resource: 'vehicles', entityType: 'vehicle' })
+);
+
+app.delete('/api/housing/:id/permanent', requireAuth, requirePermission('housing', 'delete'), (req, res) =>
+  deletePermanentResource(req, res, { table: 'housing_units', resource: 'housing', entityType: 'housing' })
+);
+
+app.delete('/api/phones/:id/permanent', requireAuth, requirePermission('phones', 'delete'), (req, res) =>
+  deletePermanentResource(req, res, { table: 'phones', resource: 'phones', entityType: 'phone' })
+);
+
+app.delete('/api/entities/:id/permanent', requireAuth, requirePermission('entities', 'delete'), (req, res) =>
+  deletePermanentResource(req, res, { table: 'entities', resource: 'entities', entityType: 'entity' })
+);
+
+app.delete('/api/employers/:id/permanent', requireAuth, requirePermission('employers', 'delete'), (req, res) =>
+  deletePermanentResource(req, res, { table: 'employers', resource: 'employers', entityType: 'employer' })
 );
 
 // ── Branches ─────────────────────────────────────────────────────────────────

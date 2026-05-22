@@ -281,7 +281,7 @@ export default function HousingProfile() {
   };
 
   const handleDeleteUnit = async () => {
-    if (!window.electronAPI?.dbQuery || !unit || Number.isNaN(housingIdNum)) return;
+    if ((!window.electronAPI?.archiveDeletePermanent && !window.electronAPI?.dbQuery) || !unit || Number.isNaN(housingIdNum)) return;
     try {
       try {
         const docRes = await listDocuments('housing', housingIdNum);
@@ -297,15 +297,19 @@ export default function HousingProfile() {
       } catch (docErr) {
         console.warn('housing delete: document cleanup (files) skipped', docErr);
       }
-      // Always drop document rows for this unit (covers remote file API quirks).
-      await execDb('DELETE FROM documents WHERE entityType = ? AND entityId = ?', ['housing', housingIdNum]);
-
-      await execDb('UPDATE phones SET assignedHousingId = NULL WHERE assignedHousingId = ?', [housingIdNum]);
-      await execDb('DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['housing', housingIdNum]);
-      await execDbOptionalTable('DELETE FROM housing_installments WHERE housingId = ?', [housingIdNum]);
-      await execDbOptionalTable('DELETE FROM housing_occupants WHERE housingUnitId = ?', [housingIdNum]);
-      await execDbOptionalTable('DELETE FROM housing_custom_fields WHERE housingUnitId = ?', [housingIdNum]);
-      await execDb('DELETE FROM housing_units WHERE id = ?', [housingIdNum]);
+      if (window.electronAPI.archiveDeletePermanent) {
+        const res = await window.electronAPI.archiveDeletePermanent(sessionToken, 'housing', housingIdNum);
+        if (!res?.success) throw new Error(res?.error || 'DELETE_FAILED');
+      } else {
+        // Always drop document rows for this unit (covers remote file API quirks).
+        await execDb('DELETE FROM documents WHERE entityType = ? AND entityId = ?', ['housing', housingIdNum]);
+        await execDb('UPDATE phones SET assignedHousingId = NULL WHERE assignedHousingId = ?', [housingIdNum]);
+        await execDb('DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['housing', housingIdNum]);
+        await execDbOptionalTable('DELETE FROM housing_installments WHERE housingId = ?', [housingIdNum]);
+        await execDbOptionalTable('DELETE FROM housing_occupants WHERE housingUnitId = ?', [housingIdNum]);
+        await execDbOptionalTable('DELETE FROM housing_custom_fields WHERE housingUnitId = ?', [housingIdNum]);
+        await execDb('DELETE FROM housing_units WHERE id = ?', [housingIdNum]);
+      }
       setDeleteUnitConfirm(false);
       navigate('/dashboard/housing');
     } catch (e) {

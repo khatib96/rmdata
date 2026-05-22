@@ -69,7 +69,8 @@ export type ArchiveRestoreResource =
   | 'vehicles'
   | 'housing'
   | 'phones'
-  | 'entities';
+  | 'entities'
+  | 'employers';
 
 export interface ElectronAPI {
   /** Phase 0: verify IPC/preload is available */
@@ -102,6 +103,11 @@ export interface ElectronAPI {
     id: number,
   ) => Promise<{ success: boolean; data?: { entityType: string }; error?: string }>;
   archiveRecord?: (
+    sessionToken: string | null | undefined,
+    resource: ArchiveRestoreResource,
+    id: number,
+  ) => Promise<{ success: boolean; data?: { entityType: string }; error?: string }>;
+  archiveDeletePermanent?: (
     sessionToken: string | null | undefined,
     resource: ArchiveRestoreResource,
     id: number,

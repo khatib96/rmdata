@@ -242,12 +242,17 @@ export default function EmployeeProfile() {
   };
 
   const handleDelete = async () => {
-    if (!window.electronAPI?.dbQuery) return;
+    if (!window.electronAPI?.archiveDeletePermanent && !window.electronAPI?.dbQuery) return;
     try {
-      await window.electronAPI.dbQuery('DELETE FROM status_history WHERE entityType = ? AND entityId = ?', ['employee', employeeId]);
-      await window.electronAPI.dbQuery('UPDATE vehicles SET responsibleEmployeeId = NULL WHERE responsibleEmployeeId = ?', [employeeId]);
-      await window.electronAPI.dbQuery('DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['employee', employeeId]);
-      await window.electronAPI.dbQuery('DELETE FROM employees WHERE id = ?', [employeeId]);
+      if (window.electronAPI.archiveDeletePermanent) {
+        const res = await window.electronAPI.archiveDeletePermanent(sessionToken, 'employees', employeeId);
+        if (!res?.success) throw new Error(res?.error || 'DELETE_FAILED');
+      } else if (window.electronAPI.dbQuery) {
+        await window.electronAPI.dbQuery('DELETE FROM status_history WHERE entityType = ? AND entityId = ?', ['employee', employeeId]);
+        await window.electronAPI.dbQuery('UPDATE vehicles SET responsibleEmployeeId = NULL WHERE responsibleEmployeeId = ?', [employeeId]);
+        await window.electronAPI.dbQuery('DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['employee', employeeId]);
+        await window.electronAPI.dbQuery('DELETE FROM employees WHERE id = ?', [employeeId]);
+      }
       setDeleteConfirm(false);
       navigate('/dashboard/employees');
     } catch (e) {

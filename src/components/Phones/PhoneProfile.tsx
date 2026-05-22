@@ -178,13 +178,18 @@ export default function PhoneProfile() {
   };
 
   const handleDelete = async () => {
-    if (!window.electronAPI?.dbQuery) return;
+    if (!window.electronAPI?.archiveDeletePermanent && !window.electronAPI?.dbQuery) return;
     try {
       for (const doc of phoneDocuments) {
         await deleteDocumentById(doc.id);
       }
-      await window.electronAPI.dbQuery('DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['phone', phoneId]);
-      await window.electronAPI.dbQuery('DELETE FROM phones WHERE id = ?', [phoneId]);
+      if (window.electronAPI.archiveDeletePermanent) {
+        const res = await window.electronAPI.archiveDeletePermanent(sessionToken, 'phones', phoneId);
+        if (!res?.success) throw new Error(res?.error || 'DELETE_FAILED');
+      } else if (window.electronAPI.dbQuery) {
+        await window.electronAPI.dbQuery('DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['phone', phoneId]);
+        await window.electronAPI.dbQuery('DELETE FROM phones WHERE id = ?', [phoneId]);
+      }
       setDeleteConfirm(false);
       navigate('/dashboard/phones');
     } catch (e) {

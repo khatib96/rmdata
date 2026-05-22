@@ -14,21 +14,87 @@ import { assertDbQueryAllowed, inspectDbQuery } from '../sql-query-guard';
 import { resolveActorFromSessionToken } from '../device-session-utils';
 
 const ARCHIVE_RESTORE_RESOURCES = {
-  employees: { table: 'employees', module: 'employees', remotePath: 'employees', entityType: 'employee', archiveActions: ['archive'] },
-  branches: { table: 'branches', module: 'branches', remotePath: 'branches', entityType: 'branch', archiveActions: ['edit'] },
-  vehicles: { table: 'vehicles', module: 'vehicles', remotePath: 'vehicles', entityType: 'vehicle', archiveActions: ['edit'] },
-  housing: { table: 'housing_units', module: 'housing', remotePath: 'housing', entityType: 'housing', archiveActions: ['edit'] },
-  phones: { table: 'phones', module: 'phones', remotePath: 'phones', entityType: 'phone', archiveActions: ['edit'] },
-  entities: { table: 'entities', module: 'entities', remotePath: 'entities', entityType: 'entity', archiveActions: ['edit'] },
+  employees: { table: 'employees', module: 'employees', remotePath: 'employees', entityType: 'employee', archiveActions: ['archive'], clearNotificationsOnArchive: false },
+  branches: { table: 'branches', module: 'branches', remotePath: 'branches', entityType: 'branch', archiveActions: ['edit'], clearNotificationsOnArchive: true },
+  vehicles: { table: 'vehicles', module: 'vehicles', remotePath: 'vehicles', entityType: 'vehicle', archiveActions: ['edit'], clearNotificationsOnArchive: false },
+  housing: { table: 'housing_units', module: 'housing', remotePath: 'housing', entityType: 'housing', archiveActions: ['edit'], clearNotificationsOnArchive: false },
+  phones: { table: 'phones', module: 'phones', remotePath: 'phones', entityType: 'phone', archiveActions: ['edit'], clearNotificationsOnArchive: false },
+  entities: { table: 'entities', module: 'entities', remotePath: 'entities', entityType: 'entity', archiveActions: ['edit'], clearNotificationsOnArchive: true },
+  employers: { table: 'employers', module: 'employers', remotePath: 'employers', entityType: 'employer', archiveActions: ['edit'], clearNotificationsOnArchive: true },
 } as const;
 
 type ArchiveRestoreResource = keyof typeof ARCHIVE_RESTORE_RESOURCES;
+type LocalQueryRunner = ReturnType<typeof AppDataSource.createQueryRunner>;
 
 function getArchiveResourceConfig(resource: unknown) {
   const key = String(resource || '') as ArchiveRestoreResource;
   return Object.prototype.hasOwnProperty.call(ARCHIVE_RESTORE_RESOURCES, key)
     ? ARCHIVE_RESTORE_RESOURCES[key]
     : null;
+}
+
+function isMissingTableError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /no such table|doesn't exist|does not exist|ER_NO_SUCH_TABLE/i.test(msg);
+}
+
+async function runOptionalLocalQuery(qr: LocalQueryRunner, sql: string, params: unknown[] = []): Promise<void> {
+  try {
+    await qr.query(sql, params);
+  } catch (err) {
+    if (isMissingTableError(err)) return;
+    throw err;
+  }
+}
+
+async function allOptionalLocalQuery(qr: LocalQueryRunner, sql: string, params: unknown[] = []): Promise<unknown[]> {
+  try {
+    const rows = await qr.query(sql, params);
+    return Array.isArray(rows) ? rows : [];
+  } catch (err) {
+    if (isMissingTableError(err)) return [];
+    throw err;
+  }
+}
+
+async function deletePermanentLocalRecord(qr: LocalQueryRunner, resource: ArchiveRestoreResource, id: number): Promise<void> {
+  if (resource === 'employees') {
+    await runOptionalLocalQuery(qr, 'DELETE FROM status_history WHERE entityType = ? AND entityId = ?', ['employee', id]);
+    await runOptionalLocalQuery(qr, 'UPDATE vehicles SET responsibleEmployeeId = NULL WHERE responsibleEmployeeId = ?', [id]);
+    await runOptionalLocalQuery(qr, 'DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['employee', id]);
+  } else if (resource === 'branches') {
+    await runOptionalLocalQuery(qr, 'DELETE FROM tax_entity_branches WHERE branchId = ?', [id]);
+    await runOptionalLocalQuery(qr, 'DELETE FROM branch_custom_fields WHERE branchId = ?', [id]);
+    await runOptionalLocalQuery(qr, 'DELETE FROM branch_establishments WHERE branchId = ?', [id]);
+    const leases = await allOptionalLocalQuery(qr, 'SELECT id FROM branch_leases WHERE branchId = ?', [id]) as { id?: number }[];
+    for (const lease of leases) {
+      if (lease.id != null) await runOptionalLocalQuery(qr, 'DELETE FROM lease_installments WHERE leaseId = ?', [lease.id]);
+    }
+    await runOptionalLocalQuery(qr, 'DELETE FROM branch_leases WHERE branchId = ?', [id]);
+    await runOptionalLocalQuery(qr, 'DELETE FROM branch_licenses WHERE branchId = ?', [id]);
+    await runOptionalLocalQuery(qr, 'UPDATE employees SET workBranchId = NULL WHERE workBranchId = ?', [id]);
+    await runOptionalLocalQuery(qr, 'DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['branch', id]);
+  } else if (resource === 'vehicles') {
+    await runOptionalLocalQuery(qr, 'DELETE FROM vehicle_custom_fields WHERE vehicleId = ?', [id]);
+    await runOptionalLocalQuery(qr, 'DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['vehicle', id]);
+  } else if (resource === 'phones') {
+    await runOptionalLocalQuery(qr, 'DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['phone', id]);
+  } else if (resource === 'housing') {
+    await runOptionalLocalQuery(qr, 'DELETE FROM documents WHERE entityType = ? AND entityId = ?', ['housing', id]);
+    await runOptionalLocalQuery(qr, 'UPDATE phones SET assignedHousingId = NULL WHERE assignedHousingId = ?', [id]);
+    await runOptionalLocalQuery(qr, 'DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['housing', id]);
+    await runOptionalLocalQuery(qr, 'DELETE FROM housing_installments WHERE housingId = ?', [id]);
+    await runOptionalLocalQuery(qr, 'DELETE FROM housing_occupants WHERE housingUnitId = ?', [id]);
+    await runOptionalLocalQuery(qr, 'DELETE FROM housing_custom_fields WHERE housingUnitId = ?', [id]);
+  } else if (resource === 'entities') {
+    await runOptionalLocalQuery(qr, 'DELETE FROM tax_payments WHERE entityId = ?', [id]);
+    await runOptionalLocalQuery(qr, 'DELETE FROM tax_entity_branches WHERE entityId = ?', [id]);
+    await runOptionalLocalQuery(qr, 'DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['entity', id]);
+  } else if (resource === 'employers') {
+    await runOptionalLocalQuery(qr, 'DELETE FROM branch_employers WHERE employerId = ?', [id]);
+    await runOptionalLocalQuery(qr, 'UPDATE phones SET assignedEmployerId = NULL WHERE assignedEmployerId = ?', [id]);
+    await runOptionalLocalQuery(qr, 'DELETE FROM notifications WHERE entityType = ? AND entityId = ?', ['employer', id]);
+  }
 }
 
 export function registerSettingsHandlers() {
@@ -286,6 +352,47 @@ $w.Stop()
     }
   });
 
+  ipcMain.handle('archive:deletePermanent', async (_event, payload: { sessionToken?: string | null; resource?: string; id?: number }) => {
+    try {
+      const id = Number(payload?.id || 0);
+      if (!Number.isInteger(id) || id <= 0) return { success: false, error: 'INVALID_ID' };
+      const config = getArchiveResourceConfig(payload?.resource);
+      if (!config) return { success: false, error: 'INVALID_RESOURCE' };
+
+      const conf = getDbConnectionConfig();
+      if (conf.mode === 'remote') {
+        return await remoteApiJson<{ success: boolean; data?: { entityType: string }; error?: string }>(
+          `/api/${config.remotePath}/${id}/permanent`,
+          { method: 'DELETE' },
+        );
+      }
+
+      const allowed = await hasLocalPermission(payload?.sessionToken, config.module, ['delete']);
+      if (!allowed) return { success: false, error: 'FORBIDDEN' };
+      if (!AppDataSource.isInitialized) await initializeDatabase();
+      const qr = AppDataSource.createQueryRunner();
+      await qr.connect();
+      try {
+        const rows = await qr.query(`SELECT id FROM ${config.table} WHERE id = ? LIMIT 1`, [id]);
+        if (!Array.isArray(rows) || rows.length === 0) return { success: false, error: 'NOT_FOUND' };
+        await qr.startTransaction();
+        try {
+          await deletePermanentLocalRecord(qr, payload.resource as ArchiveRestoreResource, id);
+          await qr.query(`DELETE FROM ${config.table} WHERE id = ?`, [id]);
+          await qr.commitTransaction();
+        } catch (err) {
+          await qr.rollbackTransaction();
+          throw err;
+        }
+        return { success: true, data: { entityType: config.entityType } };
+      } finally {
+        await qr.release();
+      }
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  });
+
   ipcMain.handle('archive:archive', async (_event, payload: { sessionToken?: string | null; resource?: string; id?: number }) => {
     try {
       const id = Number(payload?.id || 0);
@@ -310,6 +417,9 @@ $w.Stop()
         const rows = await qr.query(`SELECT id FROM ${config.table} WHERE id = ? LIMIT 1`, [id]);
         if (!Array.isArray(rows) || rows.length === 0) return { success: false, error: 'NOT_FOUND' };
         await qr.query(`UPDATE ${config.table} SET status = 'archived', updatedAt = datetime('now') WHERE id = ?`, [id]);
+        if (config.clearNotificationsOnArchive) {
+          await qr.query('DELETE FROM notifications WHERE entityType = ? AND entityId = ?', [config.entityType, id]);
+        }
         return { success: true, data: { entityType: config.entityType } };
       } finally {
         await qr.release();
