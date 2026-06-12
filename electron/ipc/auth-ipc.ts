@@ -15,6 +15,7 @@ import {
   getLocalIp, upsertConnectedDeviceSession, getRankForUserId, getRankForRoleId,
   resolveActorFromSessionToken
 } from '../device-session-utils';
+import { ensureUsersSchemaColumns } from '../database/user-schema-migrate';
 
 const loginAttempts: Record<string, { count: number; lastAttempt: number }> = {};
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -52,6 +53,7 @@ export async function ensureAuthTables(): Promise<void> {
       createdAt TEXT DEFAULT (datetime('now')),
       updatedAt TEXT DEFAULT (datetime('now'))
     )`);
+    await ensureUsersSchemaColumns(qr);
   } finally {
     await qr.release();
   }

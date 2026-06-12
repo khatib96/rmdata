@@ -9,12 +9,17 @@
     "db:contract-branch": "node scripts/add-contract-branch-id.js",
     "migrate:files:cloud": "node scripts/migrate-local-documents-to-cloud.mjs",
     "dev": "npx concurrently \"npm run dev:api\" \"npm run dev:react\" \"npm run dev:electron\"",
+    "dev:app": "npx concurrently \"npm run dev:react\" \"npm run dev:electron\"",
     "dev:web": "npx concurrently \"npm run dev:api\" \"npm run dev:react\"",
+    "fix:electron": "node scripts/fix-electron-download.cjs",
+    "postinstall": "node scripts/ensure-electron-path.cjs",
     "dev:api": "node server/dev-api-server.js",
     "test:sqlite-mysql": "node --test server/sqlite-to-mysql.test.js",
     "dev:react": "vite",
     "dev:electron": "wait-on http://localhost:5173 -t 30000 -d 2000 && electron .",
     "build": "npm run build:react && npm run build:electron",
+    "dist:win": "npm run build && electron-builder --win nsis",
+    "dist:mac": "npm run build && electron-builder --mac dmg",
     "restore:vite-index": "node scripts/restore-vite-index.cjs",
     "build:react": "node scripts/assert-vite-index.cjs && vite build",
     "build:electron": "tsc -p electron",
@@ -91,6 +96,19 @@
       "target": [
         "nsis"
       ]
+    },
+    "mac": {
+      "icon": "public/assets/rmdata_logo.png",
+      "category": "public.app-category.business",
+      "target": [
+        "dmg"
+      ],
+      "extendInfo": {
+        "NSLocationWhenInUseUsageDescription": "يُستخدم الموقع لتتبع الأجهزة المتصلة وعرض أوقات الصلاة."
+      }
+    },
+    "dmg": {
+      "title": "RMDATA ${version}"
     },
     "nsis": {
       "oneClick": false,

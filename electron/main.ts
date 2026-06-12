@@ -28,7 +28,13 @@ import { registerSettingsHandlers } from './ipc/settings-ipc';
 
 const APP_DISPLAY_NAME = 'RMDATA';
 const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
-const DEFAULT_UPDATER_URL = 'https://api.rmdata.tech/updates/win';
+function updaterPlatformSlug(): string {
+  if (process.platform === 'darwin') return 'mac';
+  if (process.platform === 'win32') return 'win';
+  return 'linux';
+}
+
+const DEFAULT_UPDATER_URL = `https://api.rmdata.tech/updates/${updaterPlatformSlug()}`;
 const AUTO_UPDATE_CHECK_KEY = 'autoUpdateCheckEnabled';
 
 function sendUpdateStatus(status: any) {
@@ -54,7 +60,9 @@ function writeLastNotifiedUpdateVersion(v: string) {
 function setupAutoUpdater() {
   if (sharedState.isDev) return;
   const remoteBase = getRemoteApiBaseUrl();
-  const updaterUrl = remoteBase ? `${remoteBase.replace(/\/+$/, '')}/updates/win` : DEFAULT_UPDATER_URL;
+  const updaterUrl = remoteBase
+    ? `${remoteBase.replace(/\/+$/, '')}/updates/${updaterPlatformSlug()}`
+    : DEFAULT_UPDATER_URL;
   autoUpdater.setFeedURL({ provider: 'generic', url: updaterUrl });
   autoUpdater.channel = 'latest';
   autoUpdater.disableDifferentialDownload = true;

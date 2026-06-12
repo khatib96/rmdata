@@ -220,6 +220,9 @@ $w.Stop()
 `;
 
   ipcMain.handle('get-windows-location', async () => {
+    if (process.platform !== 'win32') {
+      return { success: false, error: 'NOT_WINDOWS' };
+    }
     return new Promise((resolve) => {
       const ps = execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', POWERSHELL_GEO_SCRIPT], { timeout: 25000 }, (err, stdout, stderr) => {
         if (err) return resolve({ success: false, error: stderr?.trim() || err.message });

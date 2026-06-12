@@ -1,5 +1,6 @@
 import { AppDataSource } from '../../src/database/data-source';
 import { syncPermissionCatalog } from './permission-catalog-sync';
+import { ensureUsersSchemaColumns } from './user-schema-migrate';
 import * as fs from 'fs';
 import * as path from 'path';
 import { randomBytes } from 'crypto';
@@ -507,33 +508,8 @@ export async function runMigrations() {
 
     // V1.2: user-employee/employer link columns
     try {
-      const uInfo = await qrCode.query('PRAGMA table_info(users)') as { name: string }[];
-      const uCols = (uInfo || []).map((c) => c.name?.toLowerCase());
-      if (!uCols.includes('usertype')) {
-        await qrCode.query("ALTER TABLE users ADD COLUMN userType TEXT DEFAULT 'free'");
-        console.log('Added userType to users');
-      }
-      if (!uCols.includes('linkedentitytype')) {
-        await qrCode.query('ALTER TABLE users ADD COLUMN linkedEntityType TEXT');
-        console.log('Added linkedEntityType to users');
-      }
-      if (!uCols.includes('linkedentityid')) {
-        await qrCode.query('ALTER TABLE users ADD COLUMN linkedEntityId INTEGER');
-        console.log('Added linkedEntityId to users');
-      }
-      if (!uCols.includes('mustchangepassword')) {
-        await qrCode.query('ALTER TABLE users ADD COLUMN mustChangePassword INTEGER DEFAULT 0');
-        console.log('Added mustChangePassword to users');
-      }
-      if (!uCols.includes('passwordchangedat')) {
-        await qrCode.query('ALTER TABLE users ADD COLUMN passwordChangedAt TEXT');
-        console.log('Added passwordChangedAt to users');
-      }
-      if (!uCols.includes('avatarpath')) {
-        await qrCode.query('ALTER TABLE users ADD COLUMN avatarPath TEXT');
-        console.log('Added avatarPath to users');
-      }
-      await qrCode.query("UPDATE users SET userType = 'free' WHERE userType IS NULL");
+      await ensureUsersSchemaColumns(qrCode);
+      console.log('✅ Verified users schema columns (userType, linkedEntity*, avatarPath, …)');
       const empInfo = await qrCode.query('PRAGMA table_info(employees)') as { name: string }[];
       const empCols = (empInfo || []).map((c) => c.name?.toLowerCase());
       if (!empCols.includes('userid')) {

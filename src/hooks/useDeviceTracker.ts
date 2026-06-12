@@ -3,6 +3,7 @@ import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
 import { resolveLocationCity } from '../utils/resolveLocationCity';
 import { saveLastKnownLocation, getLastKnownLocation } from '../utils/lastKnownLocation';
+import { resolveDeviceCoordinates } from '../utils/deviceLocation';
 
 const HEARTBEAT_INTERVAL_MS = 45_000;
 const LOCATION_INTERVAL_MS = 5 * 60_000;
@@ -79,26 +80,26 @@ export function useDeviceTracker() {
       }
     }
 
-    // ── Location: fires every 5 min, uses Windows native API via IPC ─────
+    // ── Location: fires every 5 min (Windows IPC or browser geolocation on macOS) ─
     async function updateLocation() {
       try {
-        const res = await window.electronAPI?.getWindowsLocation?.();
-        if (res?.success && res.lat != null && res.lng != null) {
-          console.log('WINDOWS_LOCATION_SUCCESS:', res.lat, res.lng);
+        const coords = await resolveDeviceCoordinates();
+        if (coords) {
+          console.log('DEVICE_LOCATION_SUCCESS:', coords.lat, coords.lng);
           let city: string | null = null;
           try {
-            city = await resolveLocationCity(res.lat, res.lng);
+            city = await resolveLocationCity(coords.lat, coords.lng);
           } catch { /* ignore reverse-geocode failure */ }
           cachedLocation.current = {
-            gpsCoords: `${res.lat},${res.lng}`,
+            gpsCoords: `${coords.lat},${coords.lng}`,
             locationCity: city,
           };
-          saveLastKnownLocation(res.lat, res.lng, city ?? undefined);
+          saveLastKnownLocation(coords.lat, coords.lng, city ?? undefined);
           return;
         }
-        console.warn('WINDOWS_LOCATION_FAILED:', res?.error ?? 'unknown');
+        console.warn('DEVICE_LOCATION_FAILED: no coordinates');
       } catch (err) {
-        console.warn('WINDOWS_LOCATION_FAILED (exception):', err);
+        console.warn('DEVICE_LOCATION_FAILED (exception):', err);
       }
 
       const lastKnown = getLastKnownLocation();

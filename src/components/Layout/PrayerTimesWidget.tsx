@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Clock, Landmark } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { saveLastKnownLocation, getLastKnownLocation } from '../../utils/lastKnownLocation';
+import { resolveDeviceCoordinates } from '../../utils/deviceLocation';
 
 type PrayerId = 'Fajr' | 'Dhuhr' | 'Asr' | 'Maghrib' | 'Isha';
 
@@ -223,22 +224,22 @@ export default function PrayerTimesWidget({
     const resolveCoords = async () => {
       setLocationStatus('loading');
 
-      // 1. Try Windows native location via PowerShell IPC
+      // 1. Windows IPC or browser geolocation (macOS)
       try {
-        const res = await window.electronAPI?.getWindowsLocation?.();
-        if (!cancelled && res?.success && res.lat != null && res.lng != null) {
-          console.log('WINDOWS_LOCATION_SUCCESS:', res.lat, res.lng);
-          let cityAr = await fetchCityNameAr(res.lat, res.lng);
-          if (!cityAr) cityAr = getClosestEmirate(res.lat, res.lng);
-          saveLastKnownLocation(res.lat, res.lng, cityAr);
+        const deviceCoords = await resolveDeviceCoordinates();
+        if (!cancelled && deviceCoords) {
+          console.log('DEVICE_LOCATION_SUCCESS:', deviceCoords.lat, deviceCoords.lng);
+          let cityAr = await fetchCityNameAr(deviceCoords.lat, deviceCoords.lng);
+          if (!cityAr) cityAr = getClosestEmirate(deviceCoords.lat, deviceCoords.lng);
+          saveLastKnownLocation(deviceCoords.lat, deviceCoords.lng, cityAr);
           if (cancelled) return;
-          setCoords({ lat: res.lat, lng: res.lng, city: cityAr });
+          setCoords({ lat: deviceCoords.lat, lng: deviceCoords.lng, city: cityAr });
           setLocationStatus('ok');
           return;
         }
-        if (!cancelled) console.warn('WINDOWS_LOCATION_FAILED:', res?.error ?? 'unknown');
+        if (!cancelled) console.warn('DEVICE_LOCATION_FAILED: no coordinates');
       } catch (err) {
-        if (!cancelled) console.warn('WINDOWS_LOCATION_FAILED (exception):', err);
+        if (!cancelled) console.warn('DEVICE_LOCATION_FAILED (exception):', err);
       }
 
       // 2. Fallback: last known location
@@ -253,7 +254,7 @@ export default function PrayerTimesWidget({
 
       // 3. No location available at all
       if (cancelled) return;
-      console.warn('WINDOWS_LOCATION_FAILED: no fallback available');
+      console.warn('DEVICE_LOCATION_FAILED: no fallback available');
       setLocationStatus('error');
     };
 

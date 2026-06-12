@@ -186,11 +186,30 @@ npm install
 - Forward a Port مخصّص عادةً للوصول إلى منفذ على **جهاز بعيد** (مثل SSH أو بيئة سحابية). على جهازك المحلي يكفي تشغيل الأمر وتفتيح الرابط في المتصفح.
 - إذا كنت تحتاج فعلاً إلى Port Forwarding (بيئة بعيدة) والخطأ ما زال يظهر: جرّب إعادة تثبيت Cursor أو التحقق من وجود المجلد `bin` داخل مجلد تثبيت Cursor ووجود الملف `code-tunnel.exe` فيه.
 
+## التشغيل على macOS
+
+نفس خطوات التطوير تعمل على الماك:
+
+```bash
+npm install
+npm run build:electron
+npm run dev
+```
+
+لبناء ملف تثبيت `.dmg` للتوزيع:
+
+```bash
+npm run dist:mac
+```
+
+الملف الناتج يكون في مجلد `release/`. عند أول تشغيل قد يطلب macOS السماح بفتح التطبيق من **إعدادات النظام → الخصوصية والأمان** إذا لم يكن موقّعاً بشهادة Apple Developer.
+
 ## التحديثات الهوائية (Auto Update) على VPS
 
-تم إعداد التطبيق لقراءة التحديثات من:
+تم إعداد التطبيق لقراءة التحديثات حسب النظام:
 
-- `https://api.rmdata.tech/updates/win`
+- ويندوز: `https://api.rmdata.tech/updates/win`
+- ماك: `https://api.rmdata.tech/updates/mac`
 
 ### إعداد الاستضافة (VPS)
 
@@ -203,12 +222,17 @@ npm install
 
 1. ارفع رقم النسخة في `package.json` (مثال: `1.0.0` إلى `1.0.1`).
 2. ابنِ التطبيق:
-   ```bash
-   npm run build
-   npx electron-builder --win nsis
-   ```
-3. من مجلد `release/` ارفع ملفات التحديث الخاصة بويندوز إلى:
-   - `/var/www/api.rmdata.tech/public/updates/win/`
+   - **ويندوز:**
+     ```bash
+     npm run dist:win
+     ```
+   - **ماك:**
+     ```bash
+     npm run dist:mac
+     ```
+3. من مجلد `release/` ارفع ملفات التحديث:
+   - ويندوز → `/var/www/api.rmdata.tech/public/updates/win/`
+   - ماك → `/var/www/api.rmdata.tech/public/updates/mac/`
 
 عادة ستحتاج رفع ملفات مثل:
 - `latest.yml`
