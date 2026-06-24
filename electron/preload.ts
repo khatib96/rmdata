@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   /** Phase 0: ping to verify IPC/preload is available in renderer */
   ping: () => ipcRenderer.invoke('settings:ping'),
   getAppVersion: () => ipcRenderer.invoke('app:getVersion') as Promise<string>,
+  getProcessPlatform: () => ipcRenderer.invoke('app:get-platform') as Promise<NodeJS.Platform>,
   getDatabaseConnection: () => ipcRenderer.invoke('settings:getDatabaseConnection') as Promise<DatabaseConnectionConfig>,
   setDatabaseConnection: (config: DatabaseConnectionConfig) => ipcRenderer.invoke('settings:setDatabaseConnection', config) as Promise<{ success: boolean }>,
   testApiConnection: (apiBaseUrl: string, username?: string, password?: string) =>
@@ -67,8 +68,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('device:ping', token, gpsCoords, locationCity ?? null),
   deviceLogout: (token: string) =>
     ipcRenderer.invoke('device:logout', token) as Promise<{ success: boolean; error?: string }>,
+  getDeviceLocation: () =>
+    ipcRenderer.invoke('get-device-location') as Promise<{ success: boolean; lat?: number; lng?: number; error?: string }>,
+  /** @deprecated Use getDeviceLocation */
   getWindowsLocation: () =>
-    ipcRenderer.invoke('get-windows-location') as Promise<{ success: boolean; lat?: number; lng?: number; error?: string }>,
+    ipcRenderer.invoke('get-device-location') as Promise<{ success: boolean; lat?: number; lng?: number; error?: string }>,
   checkNeedsSetup: () =>
     ipcRenderer.invoke('app:checkNeedsSetup') as Promise<{ needsSetup: boolean; error?: string }>,
   firstRunSetup: (adminPassword: string) =>

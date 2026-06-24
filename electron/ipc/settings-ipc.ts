@@ -1,8 +1,8 @@
 import { ipcMain } from 'electron';
-import { execFile } from 'child_process';
 import { AppDataSource, initializeDatabase } from '../../src/database/data-source';
 import { runDbQueryInternal } from '../db-query-internal';
 import { sharedState } from '../shared-state';
+import { resolveDeviceLocationInMain } from '../device-location';
 import {
   getDbConnectionConfig, setDbConnectionConfig, normalizeApiBaseUrl, executeRemoteDbQueryOnce,
   storeRemotePassword, clearRemotePassword, clearRemoteApiSession, remoteApiJson
@@ -206,35 +206,10 @@ export function registerSettingsHandlers() {
     }
   });
 
-  const POWERSHELL_GEO_SCRIPT = `
-Add-Type -AssemblyName System.Device
-$w = New-Object System.Device.Location.GeoCoordinateWatcher([System.Device.Location.GeoPositionAccuracy]::Default)
-$w.Start()
-$timeout = 15
-$elapsed = 0
-while ($w.Status -ne 'Ready' -and $elapsed -lt $timeout) { Start-Sleep -Milliseconds 500; $elapsed += 0.5 }
-if ($w.Status -eq 'Ready' -and $w.Position.Location.Latitude -ne [double]::NaN) {
-  Write-Output "\$($w.Position.Location.Latitude)|\$($w.Position.Location.Longitude)"
-} else { Write-Error "LOCATION_UNAVAILABLE: status=$($w.Status)" }
-$w.Stop()
-`;
+  ipcMain.handle('get-device-location', async () => resolveDeviceLocationInMain());
 
-  ipcMain.handle('get-windows-location', async () => {
-    if (process.platform !== 'win32') {
-      return { success: false, error: 'NOT_WINDOWS' };
-    }
-    return new Promise((resolve) => {
-      const ps = execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', POWERSHELL_GEO_SCRIPT], { timeout: 25000 }, (err, stdout, stderr) => {
-        if (err) return resolve({ success: false, error: stderr?.trim() || err.message });
-        const parts = (stdout || '').trim().split('|');
-        if (parts.length !== 2) return resolve({ success: false, error: 'INVALID_OUTPUT' });
-        const lat = parseFloat(parts[0]), lng = parseFloat(parts[1]);
-        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return resolve({ success: false, error: 'INVALID_COORDS' });
-        resolve({ success: true, lat, lng });
-      });
-      ps.stdin?.end();
-    });
-  });
+  /** @deprecated Use get-device-location — kept for older preload builds */
+  ipcMain.handle('get-windows-location', async () => resolveDeviceLocationInMain());
 
   /** يضمن وجود كل صفوف الكتالوج في قاعدة البيانات النشطة (محلي أو بعيد) قبل عرض شاشة الصلاحيات */
   ipcMain.handle('permissions:syncCatalog', async () => {

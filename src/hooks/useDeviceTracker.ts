@@ -3,7 +3,7 @@ import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
 import { resolveLocationCity } from '../utils/resolveLocationCity';
 import { saveLastKnownLocation, getLastKnownLocation } from '../utils/lastKnownLocation';
-import { resolveDeviceCoordinates } from '../utils/deviceLocation';
+import { resolveDeviceCoordinatesDetailed } from '../utils/deviceLocation';
 
 const HEARTBEAT_INTERVAL_MS = 45_000;
 const LOCATION_INTERVAL_MS = 5 * 60_000;
@@ -83,9 +83,10 @@ export function useDeviceTracker() {
     // ── Location: fires every 5 min (Windows IPC or browser geolocation on macOS) ─
     async function updateLocation() {
       try {
-        const coords = await resolveDeviceCoordinates();
-        if (coords) {
-          console.log('DEVICE_LOCATION_SUCCESS:', coords.lat, coords.lng);
+        const resolved = await resolveDeviceCoordinatesDetailed();
+        if (resolved) {
+          const coords = resolved.coords;
+          console.log('DEVICE_LOCATION_SUCCESS:', resolved.source, coords.lat, coords.lng);
           let city: string | null = null;
           try {
             city = await resolveLocationCity(coords.lat, coords.lng);

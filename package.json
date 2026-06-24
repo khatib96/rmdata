@@ -1,7 +1,7 @@
 {
   "name": "rmdata-system",
   "productName": "RMDATA.System",
-  "version": "1.4.1",
+  "version": "1.4.4",
   "description": "Comprehensive ERP System for Al-Redaa Uniform",
   "main": "dist-electron/electron/main.js",
   "scripts": {
@@ -19,7 +19,8 @@
     "dev:electron": "wait-on http://localhost:5173 -t 30000 -d 2000 && electron .",
     "build": "npm run build:react && npm run build:electron",
     "dist:win": "npm run build && electron-builder --win nsis",
-    "dist:mac": "npm run build && electron-builder --mac dmg",
+    "dist:mac": "npm run prebuild:mac && npm run build && electron-builder --mac dmg",
+    "prebuild:mac": "mkdir -p electron/bin && swiftc -O -o electron/bin/macos-location-helper electron/macos-location-helper.swift",
     "restore:vite-index": "node scripts/restore-vite-index.cjs",
     "build:react": "node scripts/assert-vite-index.cjs && vite build",
     "build:electron": "tsc -p electron",
@@ -82,7 +83,7 @@
     "productName": "RMDATA",
     "npmRebuild": false,
     "releaseInfo": {
-      "releaseNotes": "# الإصدار 1.4.1 — إصلاحات الأمان والبيانات\n\n## 🛠️ الإصلاحات والتحسينات\n\n- **حل مشكلة اختفاء بيانات الموظفين**: تم إصلاح خلل فني كان يتسبب في إخفاء صور ومعلومات الموظفين لبعض المستخدمين (بما في ذلك المدراء) بسبب تضارب في جلسات الدخول القديمة.\n- **دعم المعرفات عن بعد (Remote ID Support)**: تحسين الربط مع قواعد البيانات الخارجية لضمان دقة مزامنة الصلاحيات.\n- **تحسين استجابة الواجهة**: تحسين أداء محرك الصلاحيات لضمان تحميل أسرع للبيانات.\n\n## 🛡️ ملخص ميزات v4 الأساسية (من الإصدار السابق)\n\n- **170 نقطة تحكم**: نظام صلاحيات دقيق يغطي الحقول، التبويبات، والإجراءات.\n- **ربط الهوية بالاسم (Username-based)**: لضمان أمان الصلاحيات وتوافقها بين السيرفر والبرنامج المحلي.\n- **كاش ذكي وسجل تدقيق (Audit Logs)**: لمراقبة التغييرات وتحسين السرعة.\n\n---\n\nتم تطوير هذا التحديث لضمان استقرار العرض والأمان في شركة **الرداء الموحد**."
+      "releaseNotes": "# الإصدار 1.4.4 — إصلاح الموقع على Mac\n\n## 🛠️ الإصلاحات\n\n- **تحديد الموقع على macOS**: مسار CoreLocation أصلي + fallback عبر الشبكة لأوقات الصلاة وتتبع الأجهزة.\n- **إصلاح قسم الضرائب** ورسائل خطأ مناسبة لنظام macOS.\n\n---\n\nفعّل الموقع لـ RMDATA من: **إعدادات النظام ← الخصوصية والأمان ← خدمات الموقع**."
     },
     "publish": {
       "provider": "generic",
@@ -103,8 +104,16 @@
       "target": [
         "dmg"
       ],
+      "entitlements": "electron/entitlements.mac.plist",
+      "entitlementsInherit": "electron/entitlements.mac.inherit.plist",
+      "extraResources": [
+        {
+          "from": "electron/bin/macos-location-helper",
+          "to": "macos-location-helper"
+        }
+      ],
       "extendInfo": {
-        "NSLocationWhenInUseUsageDescription": "يُستخدم الموقع لتتبع الأجهزة المتصلة وعرض أوقات الصلاة."
+        "NSLocationWhenInUseUsageDescription": "يُستخدم الموقع لتتبع الأجهزة المتصلة وعرض أوقات الصلاة حسب موقعك."
       }
     },
     "dmg": {

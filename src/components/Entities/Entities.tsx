@@ -112,14 +112,14 @@ export default function Entities() {
   const { data: entities, isLoading, error, refetch } = useDbQuery<Entity>(ENTITIES_QUERY, [], {});
   const list = entities ?? [];
 
-  if (!can('entities', 'view')) return <p className="p-8 text-center text-secondary-gray">{t('common.noPermission', 'ليس لديك صلاحية الوصول')}</p>;
-
   const openEntity = useCallback(
     (id: number) => {
       navigate(`/dashboard/entities/${id}`);
     },
     [navigate]
   );
+
+  if (!can('entities', 'view')) return <p className="p-8 text-center text-secondary-gray">{t('common.noPermission', 'ليس لديك صلاحية الوصول')}</p>;
 
   return (
     <EntityListView

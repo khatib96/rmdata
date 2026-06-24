@@ -117,6 +117,7 @@ export interface ElectronAPI {
   /** Phase 0: verify IPC/preload is available */
   ping?: () => Promise<string>;
   getAppVersion?: () => Promise<string>;
+  getProcessPlatform?: () => Promise<NodeJS.Platform>;
   getDatabaseConnection?: () => Promise<DatabaseConnectionConfig>;
   setDatabaseConnection?: (config: DatabaseConnectionConfig) => Promise<{ success: boolean; authenticated?: boolean }>;
   testApiConnection?: (apiBaseUrl: string, username?: string, password?: string) => Promise<{ success: boolean; ok?: boolean; database?: boolean; error?: string }>;
@@ -178,6 +179,8 @@ export interface ElectronAPI {
     locationCity?: string | null
   ) => Promise<{ forceLogout: boolean; error?: string }>;
   deviceLogout?: (token: string) => Promise<{ success: boolean; error?: string }>;
+  getDeviceLocation?: () => Promise<{ success: boolean; lat?: number; lng?: number; error?: string }>;
+  /** @deprecated Use getDeviceLocation */
   getWindowsLocation?: () => Promise<{ success: boolean; lat?: number; lng?: number; error?: string }>;
   checkNeedsSetup?: () => Promise<{ needsSetup: boolean; error?: string }>;
   firstRunSetup?: (adminPassword: string) => Promise<{ success: boolean; error?: string }>;

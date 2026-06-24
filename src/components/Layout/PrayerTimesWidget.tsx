@@ -2,7 +2,15 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Clock, Landmark } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { saveLastKnownLocation, getLastKnownLocation } from '../../utils/lastKnownLocation';
-import { resolveDeviceCoordinates } from '../../utils/deviceLocation';
+import { resolveDeviceCoordinatesDetailed } from '../../utils/deviceLocation';
+import {
+  detectLocationPlatform,
+  detectLocationPlatformAsync,
+  getLocationErrorMessage,
+  getLocationFallbackHint,
+  getLocationOkHint,
+  getApproximateLocationHint,
+} from '../../utils/locationPlatform';
 
 type PrayerId = 'Fajr' | 'Dhuhr' | 'Asr' | 'Maghrib' | 'Isha';
 
@@ -203,8 +211,9 @@ export default function PrayerTimesWidget({
   className?: string;
 }) {
   const { t } = useTranslation();
+  const [locationPlatform, setLocationPlatform] = useState<ReturnType<typeof detectLocationPlatform>>(() => detectLocationPlatform());
   const [coords, setCoords] = useState<Coords | null>(null);
-  const [locationStatus, setLocationStatus] = useState<'loading' | 'ok' | 'fallback' | 'error'>('loading');
+  const [locationStatus, setLocationStatus] = useState<'loading' | 'ok' | 'approximate' | 'fallback' | 'error'>('loading');
   const [prayers, setPrayers] = useState<Prayer[] | null>(null);
 
   const [tick, setTick] = useState<number>(() => Date.now());
@@ -219,22 +228,29 @@ export default function PrayerTimesWidget({
   }, []);
 
   useEffect(() => {
+    void detectLocationPlatformAsync().then(setLocationPlatform);
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
 
     const resolveCoords = async () => {
       setLocationStatus('loading');
+      // Give the main window time to finish loading (macOS geolocation needs a ready renderer).
+      await new Promise((r) => setTimeout(r, 1500));
+      if (cancelled) return;
 
-      // 1. Windows IPC or browser geolocation (macOS)
       try {
-        const deviceCoords = await resolveDeviceCoordinates();
-        if (!cancelled && deviceCoords) {
-          console.log('DEVICE_LOCATION_SUCCESS:', deviceCoords.lat, deviceCoords.lng);
+        const resolved = await resolveDeviceCoordinatesDetailed();
+        if (!cancelled && resolved) {
+          const { coords: deviceCoords, source } = resolved;
+          console.log('DEVICE_LOCATION_SUCCESS:', source, deviceCoords.lat, deviceCoords.lng);
           let cityAr = await fetchCityNameAr(deviceCoords.lat, deviceCoords.lng);
           if (!cityAr) cityAr = getClosestEmirate(deviceCoords.lat, deviceCoords.lng);
           saveLastKnownLocation(deviceCoords.lat, deviceCoords.lng, cityAr);
           if (cancelled) return;
           setCoords({ lat: deviceCoords.lat, lng: deviceCoords.lng, city: cityAr });
-          setLocationStatus('ok');
+          setLocationStatus(source === 'ip' ? 'approximate' : 'ok');
           return;
         }
         if (!cancelled) console.warn('DEVICE_LOCATION_FAILED: no coordinates');
@@ -248,7 +264,7 @@ export default function PrayerTimesWidget({
       if (lastKnown) {
         console.log('USING_LAST_KNOWN_LOCATION:', lastKnown.lat, lastKnown.lng);
         setCoords({ lat: lastKnown.lat, lng: lastKnown.lng, city: lastKnown.city });
-        setLocationStatus('ok');
+        setLocationStatus('fallback');
         return;
       }
 
@@ -309,6 +325,8 @@ export default function PrayerTimesWidget({
     );
   }, [nextPrayer?.id, nextPrayer?.nameAr]);
 
+  const locationErrorText = getLocationErrorMessage(locationPlatform);
+
   if (!prayers || prayers.length < 5 || !nextPrayer) {
     return (
       <div className={`w-full h-full flex flex-col ${className}`}>
@@ -317,7 +335,7 @@ export default function PrayerTimesWidget({
             <Clock size={18} className="text-dark-charcoal/70" />
             <div className="text-dark-charcoal/70 text-sm">
               {locationStatus === 'error'
-                ? 'تعذر تحديد الموقع — يرجى تفعيل خدمة الموقع في إعدادات Windows'
+                ? locationErrorText
                 : `${t('nav.nextPrayer')} ...`}
             </div>
           </div>
@@ -328,12 +346,14 @@ export default function PrayerTimesWidget({
 
   const locationHint =
     locationStatus === 'error'
-      ? 'تعذر تحديد الموقع — يرجى تفعيل خدمة الموقع في Windows'
-      : locationStatus === 'ok'
-      ? coords?.city
-        ? `الموقع الجغرافي: ${coords.city}`
-        : 'الموقع مأخوذ من خدمة Windows'
-      : 'جاري تحديد الموقع...';
+      ? locationErrorText
+      : locationStatus === 'fallback'
+        ? getLocationFallbackHint(coords?.city)
+        : locationStatus === 'approximate'
+          ? getApproximateLocationHint(coords?.city)
+          : locationStatus === 'ok'
+            ? getLocationOkHint(coords?.city, locationPlatform)
+            : 'جاري تحديد الموقع...';
 
   return (
     <div className={`w-full h-full flex flex-col ${className}`}>

@@ -336,6 +336,7 @@ app.on('window-all-closed', async () => {
 });
 
 ipcMain.handle('app:get-version', () => app.getVersion());
+ipcMain.handle('app:get-platform', () => process.platform);
 ipcMain.handle('app:check-update', () => { if (!sharedState.isDev) autoUpdater.checkForUpdates(); });
 ipcMain.handle('app:download-update', () => { if (!sharedState.isDev) autoUpdater.downloadUpdate(); });
 ipcMain.handle('app:quit-and-install', () => { if (!sharedState.isDev && sharedState.updateDownloaded) autoUpdater.quitAndInstall(); });

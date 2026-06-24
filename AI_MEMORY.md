@@ -1,6 +1,6 @@
 # AI_MEMORY - RMDATA System
 
-آخر تحديث: 2026-05-22
+آخر تحديث: 2026-06-24
 الغرض: هذا الملف هو ذاكرة عمل مشتركة بين صاحب المشروع، المبرمجين، وأدوات الذكاء الاصطناعي. يتم تحديثه بعد كل جلسة مهمة حتى لا نعيد تحليل المشروع من الصفر.
 
 > المرجع الأساسي الحالي: `docs/RMDATA_MASTER_PLAN_2026.md`.
@@ -63,15 +63,20 @@ RMDATA هو نظام إدارة داخلي لشركة الرداء الموحد.
 
 ## 4. نتائج الفحص الحالية
 
-آخر فحص تم (2026-05-21):
+آخر فحص تم (2026-06-24):
 
 - `npm run typecheck`: نجح (0 أخطاء).
 - `npm run test:sqlite-mysql`: نجح (6/6).
 - `node --check server/dev-api-server.js`: نجح.
+- `node --check server/permissions-resolver.js` و`permission-middleware.js` و`permissions-catalog.js` و`routes/legacy-db-query.js`: نجح.
+- `npm run build:react`: نجح.
+- مقارنة كتالوج الصلاحيات TS↔JS: 170/170 متطابق (`permissionCatalogV2.ts` = `permissions-catalog.js`).
 
-ملاحظة:
+ملاحظات:
 
-- المرحلة B (ثبات TypeScript) اكتملت من ناحية `typecheck` دون تعطيل `strict` أو `noUnusedLocals`.
+- المرحلة B (ثبات TypeScript) مكتملة؛ `typecheck` أخضر دون تعطيل `strict` أو `noUnusedLocals`.
+- نظام الصلاحيات v4 شغال في الكود (انظر جلسة 2026-06-24)؛ بعض ملفات `docs/` ما زالت تصف النموذج القديم.
+- إصدار التطوير المحلي: `1.4.2` (إصلاح قسم الضرائب/الكيانات — hooks order في `Entities.tsx`).
 
 ## 5. أولويات العمل القادمة
 
@@ -530,6 +535,132 @@ RMDATA هو نظام إدارة داخلي لشركة الرداء الموحد.
 
 - الاستمرار في Phase D بتقسيم routes التالية حسب المجال أو نقل أول شاشة إنشاء/تعديل كبيرة إلى API صريح.
 
+### 2026-06-24 - فحص شامل للمشروع + تأكيد الصلاحيات v4 + توثيق مشكلة الموقع على macOS
+
+ما تم:
+
+- فحص الكود مباشرة (وليس الاعتماد على الوثائق فقط) لتأكيد حالة الصلاحيات والمشروع.
+- تأكيد أن نظام الصلاحيات v4 **شغال**: كتالوج 170 مفتاحاً، واجهة `UserPermissionsSettings` لكل الأقسام، `usePermissions` + حماية سيرفر على معظم REST.
+- تأكيد إصلاح قسم الضرائب/الكيانات: ترتيب React Hooks في `Entities.tsx` (فحص الصلاحية بعد `useCallback`).
+- توثيق فجوات متبقية: حقول دقيقة لغير الموظفين/الأفرع، mismatch `users.view` vs `settings.users.view` على API، `db/query` ما زال مستخدماً بكثافة.
+- توثيق **مشكلة الموقع وأوقات الصلاة على macOS** كإصلاح مطلوب (انظر أدناه).
+
+نتائج الصلاحيات (من الكود الفعلي):
+
+| الطبقة | الحالة |
+|--------|--------|
+| كتالوج موحّد 170 مفتاح | ✅ `src/permissions/permissionCatalogV2.ts` = `server/permissions-catalog.js` |
+| مزامنة DB عند الإقلاع | ✅ Electron `syncPermissionCatalog` + Node `seedPermissionCatalog` |
+| واجهة إعدادات المستخدم | ✅ `UserPermissionsSettings.tsx` — 10 أقسام (موظفون، أفرع، سكن، مركبات، أصحاب عمل، هواتف، كيانات، مستندات، إعدادات، سجلات) |
+| نموذج التقييم v4 | Admin (`roleId=1`) = كل المفاتيح؛ مستخدم عادي = `user_permissions` فقط |
+| `role_permissions` | الجدول موجود لكن **غير مستخدم** في resolver v4؛ `RolesSettings` محذوف من قائمة الإعدادات |
+| إخفاء القائمة الجانبية | ✅ `Sidebar` → `canSection(module)` |
+| بث `permissions-changed` | ✅ عند الحفظ في `UserPermissionsSettings` (الوثائق القديمة تقول غير مفعّل — خطأ) |
+| حماية REST | ✅ ~75 endpoint بـ `requirePermission` / `requireAnyPermission` |
+| عمق UI | **كامل** للموظفين والأفرع (تبويب + حقل)؛ **جزئي** لباقي الأقسام (CRUD + تبويبات فقط، بدون field-level في UI) |
+
+فجوات صلاحيات مؤكدة (للإصلاح لاحقاً):
+
+- `GET /api/users` يطلب `users:view` بينما الكتالوج v4 يعرّف `settings:users.view`.
+- لا REST CRUD لـ `entities` — الإنشاء/التعديل عبر `db/query`.
+- GET endpoints لا تفلتر حقول حساسة (مثل الرواتب) — الاعتماد على الواجهة فقط.
+- `permissions_gap_matrix.md` و`permissions_phaseA_checklist.md` تصف نموذج deny/role قديم — **لا تعكس v4**.
+
+مشكلة الموقع وأوقات الصلاة على macOS (إصلاح مطلوب — الأولوية بعد 1.4.2):
+
+**الأعراض:** في نسخة Mac، ويدجت أوقات الصلاة يعرض: «تعذر تحديد الموقع — يرجى تفعيل خدمة الموقع في إعدادات Windows».
+
+**السبب الجذري (من الكود):**
+
+1. `electron/ipc/settings-ipc.ts` → `get-windows-location` يعمل **فقط على Windows** (`process.platform !== 'win32'` → `NOT_WINDOWS`).
+2. `src/utils/deviceLocation.ts` → بعد فشل Windows IPC يحاول `navigator.geolocation` — المسار الصحيح لـ macOS.
+3. على Electron/macOS غالباً يفشل `navigator.geolocation` لأن:
+   - لا يوجد ملف `entitlements` أو `NSLocationWhenInUseUsageDescription` في إعدادات البناء (`package.json` mac بدون entitlements).
+   - قد لا يُمنح إذن الموقع لعملية Electron من macOS.
+4. رسائل الخطأ في `PrayerTimesWidget.tsx` مكتوبة لـ Windows حتى على Mac (`إعدادات Windows` / `خدمة Windows`).
+5. `useDeviceTracker.ts` يعتمد على نفس `resolveDeviceCoordinates()` — تتبع الأجهزة على Mac يتأثر بنفس المشكلة.
+
+**الملفات المعنية:**
+
+- `src/utils/deviceLocation.ts` — منطق تحديد الإحداثيات
+- `src/components/Layout/PrayerTimesWidget.tsx` — ويدجت الصلاة + رسائل الخطأ
+- `src/hooks/useDeviceTracker.ts` — heartbeat + GPS للأجهزة المتصلة
+- `src/utils/lastKnownLocation.ts` — fallback من localStorage
+- `electron/ipc/settings-ipc.ts` — `get-windows-location` (Windows فقط)
+- `electron/main.ts` — معالجات إذن geolocation
+- `package.json` → `build.mac` — يحتاج entitlements + Info.plist للموقع
+
+**الإصلاح المقترح (لم يُنفَّذ بعد):**
+
+- إضافة دعم macOS native location (CoreLocation عبر IPC أو تفعيل geolocation بـ entitlements).
+- إضافة `NSLocationWhenInUseUsageDescription` وملف entitlements لبناء DMG.
+- توحيد رسائل الخطأ حسب النظام (`darwin` / `win32`) بدل نص Windows ثابت.
+- fallback أوضح: آخر موقع معروف → أقرب إمارة UAE → رسالة «فعّل خدمة الموقع في إعدادات macOS».
+
+الأوامر التي شُغلت:
+
+- `npm run typecheck`
+- `npm run test:sqlite-mysql`
+- `node --check server/*.js`
+- `npm run build:react`
+- مقارنة برمجية كتالوج TS↔JS (170/170)
+
+قرارات:
+
+- الوثائق في `docs/permissions_*` تحتاج تحديث لتطابق v4 — لا تعتمد عليها كمصدر حالة نهائية.
+- لا نشر للسيرفر حتى إغلاق الإصلاحات المحلية (1.4.2 + الموقع على Mac عند الطلب).
+- إصلاح الموقع على Mac مسار مستقل عن Phase D/V2 لكنه يؤثر على Dashboard وتتبع الأجهزة.
+
+الخطوة التالية:
+
+1. ~~إغلاق إصدار 1.4.2 (build electron + اختبار الضرائب).~~
+2. ~~إصلاح الموقع على macOS (entitlements + IPC أو geolocation + رسائل مناسبة).~~ — انظر جلسة 2026-06-24 (إصلاح الموقع).
+3. إصلاح `users.view` mismatch على API.
+4. تطبيق field-level permissions للكيانات/باقي الأقسام.
+
+### 2026-06-24 - إصلاح الموقع الجغرافي وأوقات الصلاة على macOS
+
+ما تم:
+
+- إنشاء `electron/device-location.ts`: مسار موحّد `get-device-location` — Windows عبر PowerShell، macOS عبر geolocation على النافذة الرئيسية مع انتظار جاهزية النافذة وإعادة محاولة.
+- إضافة `electron/entitlements.mac.plist` و`entitlements.mac.inherit.plist` مع `com.apple.security.personal-information.location`.
+- ربط entitlements في `package.json` → `build.mac`.
+- تحديث `preload.ts` و`deviceLocation.ts` لاستخدام `getDeviceLocation` بدل `getWindowsLocation` فقط.
+- إنشاء `src/utils/locationPlatform.ts` لرسائل خطأ مناسبة لـ macOS/Windows.
+- تحديث `PrayerTimesWidget.tsx`: رسائل macOS صحيحة، حالة `fallback` لآخر موقع معروف.
+- `useDeviceTracker.ts` يستفيد تلقائياً من `resolveDeviceCoordinates()` المحدّث.
+
+الملفات التي تغيرت:
+
+- `electron/device-location.ts` (جديد)
+- `electron/entitlements.mac.plist` (جديد)
+- `electron/entitlements.mac.inherit.plist` (جديد)
+- `electron/ipc/settings-ipc.ts`
+- `electron/preload.ts`
+- `src/utils/deviceLocation.ts`
+- `src/utils/locationPlatform.ts` (جديد)
+- `src/components/Layout/PrayerTimesWidget.tsx`
+- `src/types/electron.d.ts`
+- `package.json`
+
+الأوامر التي شُغلت:
+
+- `npm run typecheck`
+- `npx tsc -p electron --noEmit`
+
+نتائج التحقق:
+
+- TypeScript أخضر للواجهة وElectron.
+
+ملاحظة للنشر على Mac:
+
+- يجب **إعادة بناء DMG** (`npm run dist:mac`) حتى تُضمَّن entitlements وInfo.plist في الحزمة المثبتة.
+- عند أول تشغيل بعد التثبيت: تفعيل الموقع من **إعدادات النظام ← الخصوصية والأمان ← خدمات الموقع ← RMDATA**.
+
+الخطوة التالية:
+
+- build DMG جديد واختبار أوقات الصلاة + تتبع الأجهزة على Mac فعلياً.
+
 ## 8. قالب تسجيل جلسة جديدة
 
 عند نهاية كل جلسة، أضف مدخلاً بهذا الشكل:
@@ -568,8 +699,9 @@ RMDATA هو نظام إدارة داخلي لشركة الرداء الموحد.
 
 ## 9. الحالة الحالية المختصرة
 
-الحالة: مشروع عامل على أساس v1.4.1؛ `typecheck` أخضر وPhase C مغلقة.
+الحالة: مشروع عامل؛ إصدار التطوير `1.4.2`؛ `typecheck` أخضر؛ Phase C مغلقة؛ الصلاحيات v4 شغالة (170 مفتاح، واجهة + سيرفر).
 المرجع الحالي: `docs/RMDATA_MASTER_PLAN_2026.md`.
-المرحلة القادمة: المرحلة D - Node API فقط وترك PHP تدريجياً، مع نقل بقايا الإنشاء/التعديل الكبيرة من `dbQuery`.
-أهم خطر متبقٍ: `db/query` ما زال Legacy لبعض شاشات الإنشاء/التعديل الواسعة، ولا يستخدم لأي ميزة V2 جديدة.
-أهم قرار: Node فقط للميزات الجديدة، وPHP Legacy، ولا بداية V2 قبل تشديد `db/query` وتنظيم migrations والصلاحيات.
+المرحلة القادمة: إغلاق 1.4.2 → إصلاح الموقع على macOS → Phase D (Node API + تقليل `dbQuery`).
+إصلاح عاجل موثّق: ~~الموقع وأوقات الصلاة على Mac~~ — أُصلح في الكود؛ يحتاج build DMG جديد للاختبار على الجهاز.
+أهم خطر متبقٍ: `db/query` Legacy لشاشات الإنشاء/التعديل؛ GET API لا يفلتر حقول حساسة؛ `users.view` mismatch.
+أهم قرار: Node فقط للميزات الجديدة، PHP Legacy، لا نشر للسيرفر قبل اختبار محلي كامل، لا V2 قبل migrations.
