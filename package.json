@@ -1,7 +1,7 @@
 {
   "name": "rmdata-system",
   "productName": "RMDATA.System",
-  "version": "1.4.4",
+  "version": "1.4.6",
   "description": "Comprehensive ERP System for Al-Redaa Uniform",
   "main": "dist-electron/electron/main.js",
   "scripts": {
@@ -20,7 +20,7 @@
     "build": "npm run build:react && npm run build:electron",
     "dist:win": "npm run build && electron-builder --win nsis",
     "dist:mac": "npm run prebuild:mac && npm run build && electron-builder --mac dmg",
-    "prebuild:mac": "mkdir -p electron/bin && swiftc -O -o electron/bin/macos-location-helper electron/macos-location-helper.swift",
+    "prebuild:mac": "mkdir -p electron/bin && swiftc -emit-library -o electron/bin/libRmdataLocation.dylib -framework CoreLocation electron/macos-location-lib.swift",
     "restore:vite-index": "node scripts/restore-vite-index.cjs",
     "build:react": "node scripts/assert-vite-index.cjs && vite build",
     "build:electron": "tsc -p electron",
@@ -60,6 +60,7 @@
     "i18next": "^25.8.18",
     "jsonwebtoken": "^9.0.3",
     "jspdf": "^2.5.1",
+    "koffi": "^3.0.2",
     "lucide-react": "^0.303.0",
     "multer": "^2.1.1",
     "mysql2": "^3.11.0",
@@ -83,7 +84,7 @@
     "productName": "RMDATA",
     "npmRebuild": false,
     "releaseInfo": {
-      "releaseNotes": "# الإصدار 1.4.4 — إصلاح الموقع على Mac\n\n## 🛠️ الإصلاحات\n\n- **تحديد الموقع على macOS**: مسار CoreLocation أصلي + fallback عبر الشبكة لأوقات الصلاة وتتبع الأجهزة.\n- **إصلاح قسم الضرائب** ورسائل خطأ مناسبة لنظام macOS.\n\n---\n\nفعّل الموقع لـ RMDATA من: **إعدادات النظام ← الخصوصية والأمان ← خدمات الموقع**."
+      "releaseNotes": "# الإصدار 1.4.6 — CoreLocation أصلي على Mac\n\n## 🛠️ الإصلاحات\n\n- **تحديد الموقع عبر CoreLocation مباشرة** داخل عملية RMDATA (وليس IP ولا Chromium فقط).\n- **طلب الموقع الفعلي** من خدمة الموقع في macOS عند تشغيل التطبيق.\n- بدون أي اعتماد على عنوان IP.\n\n---\n\nفعّل الموقع لـ RMDATA من: **إعدادات النظام ← الخصوصية والأمان ← خدمات الموقع**."
     },
     "publish": {
       "provider": "generic",
@@ -108,12 +109,14 @@
       "entitlementsInherit": "electron/entitlements.mac.inherit.plist",
       "extraResources": [
         {
-          "from": "electron/bin/macos-location-helper",
-          "to": "macos-location-helper"
+          "from": "electron/bin/libRmdataLocation.dylib",
+          "to": "libRmdataLocation.dylib"
         }
       ],
       "extendInfo": {
-        "NSLocationWhenInUseUsageDescription": "يُستخدم الموقع لتتبع الأجهزة المتصلة وعرض أوقات الصلاة حسب موقعك."
+        "NSLocationWhenInUseUsageDescription": "يُستخدم الموقع لتتبع الأجهزة المتصلة وعرض أوقات الصلاة حسب موقعك.",
+        "NSLocationUsageDescription": "يُستخدم الموقع لتتبع الأجهزة المتصلة وعرض أوقات الصلاة حسب موقعك.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "يُستخدم الموقع لتتبع الأجهزة المتصلة وعرض أوقات الصلاة حسب موقعك."
       }
     },
     "dmg": {

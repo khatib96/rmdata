@@ -1,11 +1,11 @@
 /**
- * Cross-platform device coordinates for prayer times and connected-device tracking.
+ * Cross-platform device coordinates — GPS / OS location only (no IP).
  * Windows: System.Device.Location via PowerShell.
- * macOS: bundled CoreLocation helper, then Chromium geolocation on main window.
+ * macOS: native CoreLocation dylib in main process, then Chromium geolocation fallback.
  */
 import { execFile } from 'child_process';
-import * as fs from 'fs';
 import * as path from 'path';
+import { Worker } from 'worker_threads';
 import { app } from 'electron';
 import { sharedState } from './shared-state';
 
@@ -45,14 +45,81 @@ new Promise((resolve, reject) => {
     clearTimeout(timer);
     fn();
   };
-  const timer = setTimeout(() => done(() => reject(new Error('GEO_TIMEOUT'))), 35000);
-  watchId = navigator.geolocation.watchPosition(
-    (pos) => done(() => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude })),
-    (err) => done(() => reject(new Error('GEO_' + (err && err.code != null ? err.code : 'UNKNOWN')))),
-    { enableHighAccuracy: false, maximumAge: 300000, timeout: 30000 }
+  const opts = { enableHighAccuracy: true, maximumAge: 0, timeout: 60000 };
+  const timer = setTimeout(() => done(() => reject(new Error('GEO_TIMEOUT'))), 65000);
+  const onOk = (pos) => done(() => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }));
+  const onErr = (err) => done(() => reject(new Error('GEO_' + (err && err.code != null ? err.code : 'UNKNOWN'))));
+  navigator.geolocation.getCurrentPosition(
+    onOk,
+    () => { watchId = navigator.geolocation.watchPosition(onOk, onErr, opts); },
+    opts
   );
 })
 `;
+
+const NATIVE_ERROR: Record<number, string> = {
+  1: 'NATIVE_ERROR',
+  2: 'PERMISSION_DENIED',
+  3: 'TIMEOUT',
+  4: 'POSITION_UNAVAILABLE',
+  5: 'UNKNOWN_AUTH',
+};
+
+let cachedNativeDylibPath: string | null = null;
+
+function resolveNativeDylibPath(): string {
+  if (cachedNativeDylibPath) return cachedNativeDylibPath;
+  cachedNativeDylibPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'libRmdataLocation.dylib')
+    : path.join(__dirname, '../bin/libRmdataLocation.dylib');
+  return cachedNativeDylibPath;
+}
+
+function getMacOSNativeLocation(): Promise<DeviceLocationResult> {
+  const dylibPath = resolveNativeDylibPath();
+  return new Promise((resolve) => {
+    const worker = new Worker(
+      `const { parentPort, workerData } = require('node:worker_threads');
+       const koffi = require('koffi');
+       try {
+         const lib = koffi.load(workerData.dylibPath);
+         const fn = lib.func('int32 rmdata_location_get(_Out_ double *outLat, _Out_ double *outLng, double timeoutSec)');
+         const outLat = koffi.alloc('double', 1);
+         const outLng = koffi.alloc('double', 1);
+         const code = fn(outLat, outLng, workerData.timeoutSec);
+         parentPort.postMessage({
+           code,
+           lat: koffi.decode(outLat, 'double'),
+           lng: koffi.decode(outLng, 'double'),
+         });
+       } catch (e) {
+         parentPort.postMessage({ code: -1, error: e && e.message ? e.message : String(e) });
+       }`,
+      { eval: true, workerData: { dylibPath, timeoutSec: 60 } },
+    );
+    worker.on('message', (msg: { code: number; lat?: number; lng?: number; error?: string }) => {
+      void worker.terminate();
+      if (
+        msg.code === 0 &&
+        msg.lat != null &&
+        msg.lng != null &&
+        Number.isFinite(msg.lat) &&
+        Number.isFinite(msg.lng)
+      ) {
+        console.log('[device-location] native CoreLocation:', msg.lat, msg.lng);
+        resolve({ success: true, lat: msg.lat, lng: msg.lng, source: 'macos-native' });
+        return;
+      }
+      const err = msg.error ?? NATIVE_ERROR[msg.code] ?? `NATIVE_${msg.code}`;
+      console.warn('[device-location] native CoreLocation failed:', err);
+      resolve({ success: false, error: err });
+    });
+    worker.on('error', (err) => {
+      console.warn('[device-location] native worker error:', err);
+      resolve({ success: false, error: err.message });
+    });
+  });
+}
 
 function parseLatLng(stdout: string): { lat: number; lng: number } | null {
   const parts = (stdout || '').trim().split('|');
@@ -85,51 +152,15 @@ function getWindowsLocation(): Promise<DeviceLocationResult> {
   });
 }
 
-function getMacOSHelperPath(): string | null {
-  const candidates = [
-    path.join(process.resourcesPath, 'macos-location-helper'),
-    path.join(__dirname, '..', 'bin', 'macos-location-helper'),
-    path.join(app.getAppPath(), 'electron', 'bin', 'macos-location-helper'),
-  ];
-  for (const p of candidates) {
-    try {
-      if (fs.existsSync(p)) return p;
-    } catch {
-      /* ignore */
-    }
-  }
-  return null;
-}
-
-function getMacOSNativeLocation(): Promise<DeviceLocationResult> {
-  const helper = getMacOSHelperPath();
-  if (!helper) {
-    return Promise.resolve({ success: false, error: 'NO_MACOS_HELPER' });
-  }
-  return new Promise((resolve) => {
-    execFile(helper, { timeout: 40_000 }, (err, stdout, stderr) => {
-      if (err) {
-        resolve({ success: false, error: (stderr || err.message || '').trim() || 'MACOS_NATIVE_FAILED' });
-        return;
-      }
-      const coords = parseLatLng(stdout);
-      if (!coords) {
-        resolve({ success: false, error: 'INVALID_OUTPUT' });
-        return;
-      }
-      resolve({ success: true, ...coords, source: 'macos-native' });
-    });
-  });
-}
-
-async function waitForMainWindow(maxMs = 15_000) {
+async function waitForMainWindow(maxMs = 20_000) {
   const start = Date.now();
   while (Date.now() - start < maxMs) {
     const win = sharedState.mainWindow;
     if (win && !win.isDestroyed() && !win.webContents.isLoading()) return win;
     await new Promise((r) => setTimeout(r, 300));
   }
-  return sharedState.mainWindow && !sharedState.mainWindow.isDestroyed() ? sharedState.mainWindow : null;
+  const win = sharedState.mainWindow;
+  return win && !win.isDestroyed() ? win : null;
 }
 
 async function getMacOSChromiumLocation(): Promise<DeviceLocationResult> {
@@ -139,7 +170,8 @@ async function getMacOSChromiumLocation(): Promise<DeviceLocationResult> {
   }
 
   try {
-    if (!win.isVisible()) win.show();
+    win.show();
+    win.focus();
     const result = (await win.webContents.executeJavaScript(RENDERER_GEOLOCATION_JS, true)) as {
       lat?: number;
       lng?: number;
@@ -155,34 +187,26 @@ async function getMacOSChromiumLocation(): Promise<DeviceLocationResult> {
     return { success: false, error: 'INVALID_COORDS' };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    console.warn('[device-location] macOS Chromium geolocation failed:', msg);
     return { success: false, error: msg };
   }
 }
 
-async function getMacOSLocation(): Promise<DeviceLocationResult> {
-  const native = await getMacOSNativeLocation();
-  if (native.success) return native;
-
-  let chromium = await getMacOSChromiumLocation();
-  if (!chromium.success && chromium.error === 'NO_WINDOW') {
-    await new Promise((r) => setTimeout(r, 2000));
-    chromium = await getMacOSChromiumLocation();
-  }
-  if (chromium.success) return chromium;
-
-  return {
-    success: false,
-    error: chromium.error || native.error || 'MACOS_LOCATION_FAILED',
-  };
-}
-
-/** Resolve coordinates from the OS / Electron main process. */
+/** Resolve coordinates from the OS — GPS only, no IP. */
 export async function resolveDeviceLocationInMain(): Promise<DeviceLocationResult> {
   if (process.platform === 'win32') {
     return getWindowsLocation();
   }
   if (process.platform === 'darwin') {
-    return getMacOSLocation();
+    const native = await getMacOSNativeLocation();
+    if (native.success) return native;
+    return getMacOSChromiumLocation();
   }
   return { success: false, error: 'UNSUPPORTED_PLATFORM' };
+}
+
+/** Prime CoreLocation after the main window loads (macOS). */
+export async function warmUpMacOSLocation(): Promise<void> {
+  if (process.platform !== 'darwin') return;
+  void getMacOSNativeLocation();
 }

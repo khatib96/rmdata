@@ -566,9 +566,9 @@ RMDATA هو نظام إدارة داخلي لشركة الرداء الموحد.
 - GET endpoints لا تفلتر حقول حساسة (مثل الرواتب) — الاعتماد على الواجهة فقط.
 - `permissions_gap_matrix.md` و`permissions_phaseA_checklist.md` تصف نموذج deny/role قديم — **لا تعكس v4**.
 
-مشكلة الموقع وأوقات الصلاة على macOS (إصلاح مطلوب — الأولوية بعد 1.4.2):
+مشكلة الموقع وأوقات الصلاة على macOS (**مُحدَّث — انظر جلسة 1.4.6 أدناه**):
 
-**الأعراض:** في نسخة Mac، ويدجت أوقات الصلاة يعرض: «تعذر تحديد الموقع — يرجى تفعيل خدمة الموقع في إعدادات Windows».
+**الأعراض (قديمة):** في نسخة Mac، ويدجت أوقات الصلاة يعرض: «تعذر تحديد الموقع — يرجى تفعيل خدمة الموقع في إعدادات Windows».
 
 **السبب الجذري (من الكود):**
 
@@ -590,12 +590,7 @@ RMDATA هو نظام إدارة داخلي لشركة الرداء الموحد.
 - `electron/main.ts` — معالجات إذن geolocation
 - `package.json` → `build.mac` — يحتاج entitlements + Info.plist للموقع
 
-**الإصلاح المقترح (لم يُنفَّذ بعد):**
-
-- إضافة دعم macOS native location (CoreLocation عبر IPC أو تفعيل geolocation بـ entitlements).
-- إضافة `NSLocationWhenInUseUsageDescription` وملف entitlements لبناء DMG.
-- توحيد رسائل الخطأ حسب النظام (`darwin` / `win32`) بدل نص Windows ثابت.
-- fallback أوضح: آخر موقع معروف → أقرب إمارة UAE → رسالة «فعّل خدمة الموقع في إعدادات macOS».
+**الإصلاح المقترح (لم يُنفَّذ بعد):** → **نُفِّذ لاحقاً في 1.4.4–1.4.6** (CoreLocation أصلي، بدون IP).
 
 الأوامر التي شُغلت:
 
@@ -661,6 +656,96 @@ RMDATA هو نظام إدارة داخلي لشركة الرداء الموحد.
 
 - build DMG جديد واختبار أوقات الصلاة + تتبع الأجهزة على Mac فعلياً.
 
+### 2026-06-24/25 - إصلاح الموقع على macOS (1.4.4 → 1.4.6) + التحديث الهوائي لـ Mac
+
+**السياق:** على Mac كان الموقع يظهر مدينة خاطئة (حلوان — من IP) أو «غير متوفر» في الأجهزة المتصلة وأوقات الصلاة، رغم تفعيل صلاحية RMDATA في إعدادات النظام.
+
+**ما تم:**
+
+**1.4.4 — محاولة أولى (ثم تبين أن IP غير مقبول):**
+- مساعد Swift منفصل + fallback عبر IP (`ipGeolocation.ts`).
+- المستخدم رفض الاعتماد على IP — يريد GPS/خدمة الموقع فقط.
+
+**1.4.5 — إزالة IP بالكامل:**
+- حذف `src/utils/ipGeolocation.ts` وكل مسارات `approximate`/IP.
+- ترتيب macOS: `navigator.geolocation` في الـ renderer ثم IPC.
+- `lastKnownLocation.ts`: مفتاح جديد `rmdata_gps_location_v1` + مسح الذاكرة القديمة الخاطئة.
+- `setupGeolocationPermissions()` على `session.defaultSession` + warm-up عند `did-finish-load`.
+- إزالة مساعد Swift المنفصل (لا يرث صلاحية RMDATA.app).
+
+**1.4.6 — الحل الجذري (CoreLocation أصلي):**
+- **السبب التقني:** `navigator.geolocation` في Electron على macOS غالباً لا يفعّل CoreLocation ولا يظهر نافذة الإذن (مشكلة معروفة في Chromium/Electron).
+- إنشاء `electron/macos-location-lib.swift` → يُجمَّع إلى `libRmdataLocation.dylib` (CoreLocation داخل عملية RMDATA).
+- `electron/device-location.ts`: على Mac يستدعي الـ dylib عبر `koffi` في worker thread (لا يجمّد الواجهة)، ثم fallback Chromium.
+- `electron/set-geolocation-flags.ts`: أعلام Chromium `MacCoreLocationBackend` و`LocationProviderManager:PlatformOnly`.
+- `package.json`: `prebuild:mac` لـ swiftc، `extraResources` للـ dylib، `NSLocationAlwaysAndWhenInUseUsageDescription`.
+- تبعية جديدة: `koffi`.
+- ترتيب الـ renderer على Mac: **IPC أولاً** (native) ثم المتصفح.
+- إصدار التطوير الحالي: **1.4.6**؛ DMG: `release/RMDATA-1.4.6-arm64.dmg`.
+
+**التحديث الهوائي (Auto Update) على السيرفر:**
+
+| المنصة | مسار VPS (داخل `html/updates/`) | ملف الفهرس |
+|--------|-----------------------------------|------------|
+| Windows | `win/` | `latest.yml` |
+| macOS | `mac/` (يُنشأ جديداً) | `latest-mac.yml` |
+
+من `release/` بعد `npm run dist:mac` يُرفع إلى `updates/mac/`:
+- `latest-mac.yml`
+- `RMDATA-x.x.x-arm64.dmg`
+- `RMDATA-x.x.x-arm64.dmg.blockmap` (اختياري)
+
+التحقق: `https://api.rmdata.tech/updates/mac/latest-mac.yml`
+
+التطبيق يقرأ تلقائياً من `updates/mac` على darwin (`electron/main.ts` → `updaterPlatformSlug()`).
+
+**الملفات التي تغيرت (1.4.4–1.4.6):**
+
+- `electron/macos-location-lib.swift` (جديد)
+- `electron/set-geolocation-flags.ts` (جديد)
+- `electron/device-location.ts`
+- `electron/main.ts`
+- `src/utils/deviceLocation.ts`
+- `src/utils/lastKnownLocation.ts`
+- `src/utils/locationPlatform.ts`
+- `src/components/Layout/PrayerTimesWidget.tsx`
+- `package.json` / `package-lock.json`
+- حُذف: `src/utils/ipGeolocation.ts`
+- `.gitignore`: `electron/bin/` (مخرجات prebuild — لا تُرفع لـ git)
+
+**الأوامر التي شُغلت:**
+
+- `npm run typecheck`
+- `npm run build:electron`
+- `npm run prebuild:mac`
+- `npm run dist:mac` → `RMDATA-1.4.6-arm64.dmg`
+
+**نتائج التحقق:**
+
+- TypeScript أخضر؛ الـ dylib مضمّن في `RMDATA.app/Contents/Resources/`.
+- Info.plist يحتوي مفاتيح الموقع الثلاثة.
+- اختبار الـ dylib من `node` مباشرة يعطي timeout (متوقع — ليس عملية RMDATA)؛ الاختبار الحقيقي على الجهاز بعد تثبيت DMG.
+
+**قرارات:**
+
+- **لا IP أبداً** لتحديد الموقع — GPS/CoreLocation/Wi‑Fi فقط.
+- البناء الحالي **arm64 فقط** (Apple Silicon).
+- لا نشر ملفات `release/` على git (في `.gitignore`) — تُرفع يدوياً/SFTP إلى VPS.
+- `electron/bin/libRmdataLocation.dylib` يُبنى محلياً عند `prebuild:mac` ولا يُتتبَّع في git.
+
+**مشاكل أو مخاطر:**
+
+- أجهزة Mac Intel تحتاج بناء `x64` منفصل لاحقاً إن وُجدت.
+- التحديث الهوائي على Mac يحمّل DMG؛ المستخدم يحتاج تأكيد التثبيت من «حول النظام».
+- 1.4.6 يحتاج اختبار نهائي من المالك على الجهاز (موقع + أوقات صلاة + أجهزة متصلة).
+
+**الخطوة التالية:**
+
+1. تثبيت `RMDATA-1.4.6-arm64.dmg` واختبار الموقع على Mac.
+2. رفع ملفات `release/` إلى `updates/mac/` على VPS.
+3. commit + push للكود على GitHub.
+4. إصلاح `users.view` mismatch؛ field-level permissions.
+
 ## 8. قالب تسجيل جلسة جديدة
 
 عند نهاية كل جلسة، أضف مدخلاً بهذا الشكل:
@@ -699,9 +784,10 @@ RMDATA هو نظام إدارة داخلي لشركة الرداء الموحد.
 
 ## 9. الحالة الحالية المختصرة
 
-الحالة: مشروع عامل؛ إصدار التطوير `1.4.2`؛ `typecheck` أخضر؛ Phase C مغلقة؛ الصلاحيات v4 شغالة (170 مفتاح، واجهة + سيرفر).
+الحالة: مشروع عامل؛ إصدار التطوير **1.4.6**؛ `typecheck` أخضر؛ Phase C مغلقة؛ الصلاحيات v4 شغالة (170 مفتاح، واجهة + سيرفر).
 المرجع الحالي: `docs/RMDATA_MASTER_PLAN_2026.md`.
-المرحلة القادمة: إغلاق 1.4.2 → إصلاح الموقع على macOS → Phase D (Node API + تقليل `dbQuery`).
-إصلاح عاجل موثّق: ~~الموقع وأوقات الصلاة على Mac~~ — أُصلح في الكود؛ يحتاج build DMG جديد للاختبار على الجهاز.
-أهم خطر متبقٍ: `db/query` Legacy لشاشات الإنشاء/التعديل؛ GET API لا يفلتر حقول حساسة؛ `users.view` mismatch.
-أهم قرار: Node فقط للميزات الجديدة، PHP Legacy، لا نشر للسيرفر قبل اختبار محلي كامل، لا V2 قبل migrations.
+المرحلة القادمة: اختبار 1.4.6 على Mac → رفع `updates/mac/` على VPS → Phase D (Node API + تقليل `dbQuery`).
+إصلاح الموقع على Mac: CoreLocation أصلي عبر `libRmdataLocation.dylib` (1.4.6) — بانتظار تأكيد المالك بعد تثبيت DMG.
+التحديث الهوائي: `updates/win/` موجود؛ `updates/mac/` يحتاج إنشاء + رفع `latest-mac.yml` + DMG.
+أهم خطر متبقٍ: `db/query` Legacy؛ GET API لا يفلتر حقول حساسة؛ `users.view` mismatch؛ بناء Mac arm64 فقط.
+أهم قرار: Node فقط للميزات الجديدة، PHP Legacy، لا نشر VPS قبل اختبار محلي، لا V2 قبل migrations، **لا موقع عبر IP**.

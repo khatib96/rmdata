@@ -9,7 +9,6 @@ import {
   getLocationErrorMessage,
   getLocationFallbackHint,
   getLocationOkHint,
-  getApproximateLocationHint,
 } from '../../utils/locationPlatform';
 
 type PrayerId = 'Fajr' | 'Dhuhr' | 'Asr' | 'Maghrib' | 'Isha';
@@ -213,7 +212,7 @@ export default function PrayerTimesWidget({
   const { t } = useTranslation();
   const [locationPlatform, setLocationPlatform] = useState<ReturnType<typeof detectLocationPlatform>>(() => detectLocationPlatform());
   const [coords, setCoords] = useState<Coords | null>(null);
-  const [locationStatus, setLocationStatus] = useState<'loading' | 'ok' | 'approximate' | 'fallback' | 'error'>('loading');
+  const [locationStatus, setLocationStatus] = useState<'loading' | 'ok' | 'fallback' | 'error'>('loading');
   const [prayers, setPrayers] = useState<Prayer[] | null>(null);
 
   const [tick, setTick] = useState<number>(() => Date.now());
@@ -250,7 +249,7 @@ export default function PrayerTimesWidget({
           saveLastKnownLocation(deviceCoords.lat, deviceCoords.lng, cityAr);
           if (cancelled) return;
           setCoords({ lat: deviceCoords.lat, lng: deviceCoords.lng, city: cityAr });
-          setLocationStatus(source === 'ip' ? 'approximate' : 'ok');
+          setLocationStatus('ok');
           return;
         }
         if (!cancelled) console.warn('DEVICE_LOCATION_FAILED: no coordinates');
@@ -349,11 +348,9 @@ export default function PrayerTimesWidget({
       ? locationErrorText
       : locationStatus === 'fallback'
         ? getLocationFallbackHint(coords?.city)
-        : locationStatus === 'approximate'
-          ? getApproximateLocationHint(coords?.city)
-          : locationStatus === 'ok'
-            ? getLocationOkHint(coords?.city, locationPlatform)
-            : 'جاري تحديد الموقع...';
+        : locationStatus === 'ok'
+          ? getLocationOkHint(coords?.city, locationPlatform)
+          : 'جاري تحديد الموقع...';
 
   return (
     <div className={`w-full h-full flex flex-col ${className}`}>

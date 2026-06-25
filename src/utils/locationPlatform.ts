@@ -26,10 +26,6 @@ export function getLocationOkHint(city: string | undefined, platform: LocationPl
   return 'تم تحديد الموقع';
 }
 
-export function getApproximateLocationHint(city: string | undefined): string {
-  return city ? `الموقع تقريبي (عبر الشبكة): ${city}` : 'الموقع تقريبي عبر عنوان الشبكة';
-}
-
 export function getLocationFallbackHint(city: string | undefined): string {
   return city ? `الموقع (آخر موقع معروف): ${city}` : 'الموقع مأخوذ من آخر موقع معروف';
 }

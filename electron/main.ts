@@ -1,5 +1,7 @@
+import './set-geolocation-flags';
 import './set-db-path';
-import { app, BrowserWindow, protocol, Notification, Tray, nativeImage, Menu, screen, ipcMain } from 'electron';
+import { app, BrowserWindow, protocol, Notification, Tray, nativeImage, Menu, screen, ipcMain, session } from 'electron';
+import { warmUpMacOSLocation } from './device-location';
 import * as path from 'path';
 import * as fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -105,6 +107,17 @@ function isAutoUpdateCheckEnabled(): boolean {
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'local-file', privileges: { standard: true, secure: true, supportFetchAPI: true, bypassCSP: true, stream: true } }]);
 
+function setupGeolocationPermissions() {
+  const allow = (permission: string) =>
+    permission === 'geolocation' || permission === 'notifications' || permission === 'media';
+
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
+    if (permission === 'geolocation') console.log('[location] permission requested — granting');
+    callback(allow(permission));
+  });
+  session.defaultSession.setPermissionCheckHandler((_wc, permission) => allow(permission));
+}
+
 function createSplashWindow() {
   const win = new BrowserWindow({
     width: 600, height: 600, transparent: true, frame: false, alwaysOnTop: true, resizable: false,
@@ -122,10 +135,9 @@ function createWindow() {
     webPreferences: { preload: path.join(__dirname, 'preload.js'), nodeIntegration: false, contextIsolation: true, webviewTag: true, plugins: true, webSecurity: true },
     titleBarStyle: 'default', backgroundColor: '#F6F5F3',
   });
-  win.webContents.session.setPermissionRequestHandler((WC, permission, callback) => {
-    callback(['geolocation', 'notifications', 'media'].includes(permission));
+  win.webContents.once('did-finish-load', () => {
+    void warmUpMacOSLocation();
   });
-  win.webContents.session.setPermissionCheckHandler((_WC, permission) => ['geolocation', 'notifications', 'media'].includes(permission));
   win.once('ready-to-show', () => {
     if (sharedState.splashWindow) sharedState.splashWindow.close();
     win.show();
@@ -167,6 +179,7 @@ setDbQueryInternalImpl(async (query: string, params?: unknown[]): Promise<DbQuer
 app.whenReady().then(async () => {
   app.setName(APP_DISPLAY_NAME);
   app.setAppUserModelId('RMDATA.System');
+  setupGeolocationPermissions();
   setupAutoUpdater();
 
   protocol.handle('local-file', async (request) => {

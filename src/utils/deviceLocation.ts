@@ -1,6 +1,6 @@
 export type DeviceCoordinates = { lat: number; lng: number };
 
-export type LocationResolveSource = 'ipc' | 'browser' | 'ip' | 'none';
+export type LocationResolveSource = 'ipc' | 'browser';
 
 type LocationApiResult = { success: boolean; lat?: number; lng?: number; error?: string };
 
@@ -10,12 +10,30 @@ function coordsFromApiResult(res: LocationApiResult | undefined): DeviceCoordina
   return { lat: res.lat, lng: res.lng };
 }
 
-/** Browser geolocation with watchPosition (more reliable than getCurrentPosition on macOS). */
-function getBrowserGeolocation(): Promise<DeviceCoordinates | null> {
-  if (typeof navigator === 'undefined' || !navigator.geolocation) return Promise.resolve(null);
+function geoOptions(highAccuracy: boolean): PositionOptions {
+  return {
+    enableHighAccuracy: highAccuracy,
+    maximumAge: 0,
+    timeout: 60_000,
+  };
+}
+
+/**
+ * Device GPS/Wi‑Fi location via navigator.geolocation (uses RMDATA.app permission on macOS).
+ * No IP-based fallback — only real device location.
+ */
+function getBrowserGeolocation(highAccuracy = true): Promise<DeviceCoordinates | null> {
+  if (typeof navigator === 'undefined' || !navigator.geolocation) {
+    console.warn('GEOLOCATION_UNAVAILABLE: navigator.geolocation missing');
+    return Promise.resolve(null);
+  }
+
+  const options = geoOptions(highAccuracy);
 
   return new Promise((resolve) => {
     let settled = false;
+    let watchId: number | null = null;
+
     const finish = (value: DeviceCoordinates | null) => {
       if (settled) return;
       settled = true;
@@ -24,13 +42,28 @@ function getBrowserGeolocation(): Promise<DeviceCoordinates | null> {
       resolve(value);
     };
 
-    let watchId: number | null = null;
-    const timer = window.setTimeout(() => finish(null), 35_000);
+    const onSuccess = (pos: GeolocationPosition) => {
+      console.log('GEOLOCATION_SUCCESS:', pos.coords.latitude, pos.coords.longitude, 'accuracy=', pos.coords.accuracy);
+      finish({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+    };
 
-    watchId = navigator.geolocation.watchPosition(
-      (pos) => finish({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => finish(null),
-      { enableHighAccuracy: false, maximumAge: 300_000, timeout: 30_000 },
+    const onError = (err: GeolocationPositionError) => {
+      console.warn('GEOLOCATION_ERROR:', err.code, err.message);
+      finish(null);
+    };
+
+    const timer = window.setTimeout(() => {
+      console.warn('GEOLOCATION_TIMEOUT');
+      finish(null);
+    }, 65_000);
+
+    navigator.geolocation.getCurrentPosition(
+      onSuccess,
+      (err) => {
+        console.warn('GEOLOCATION_GET_CURRENT_FAILED:', err.code, err.message, '- trying watchPosition');
+        watchId = navigator.geolocation.watchPosition(onSuccess, onError, options);
+      },
+      options,
     );
   });
 }
@@ -54,35 +87,46 @@ async function tryIpcLocation(): Promise<DeviceCoordinates | null> {
   }
 }
 
+async function isMacOS(): Promise<boolean> {
+  try {
+    const p = await window.electronAPI?.getProcessPlatform?.();
+    if (p === 'darwin') return true;
+  } catch {
+    /* ignore */
+  }
+  return /Macintosh|Mac OS X/i.test(navigator.userAgent);
+}
+
 export type ResolvedLocation = {
   coords: DeviceCoordinates;
   source: LocationResolveSource;
 };
 
-/**
- * Resolve device coordinates (best effort):
- * 1) Electron IPC (Windows PowerShell / macOS native helper or Chromium)
- * 2) Browser geolocation
- * 3) IP-based approximate location
- */
+/** GPS/device location only — never IP. */
 export async function resolveDeviceCoordinates(): Promise<DeviceCoordinates | null> {
   const result = await resolveDeviceCoordinatesDetailed();
   return result?.coords ?? null;
 }
 
 export async function resolveDeviceCoordinatesDetailed(): Promise<ResolvedLocation | null> {
+  const mac = await isMacOS();
+
+  if (mac) {
+    // macOS: IPC uses native CoreLocation in main process (RMDATA.app permission).
+    const ipc = await tryIpcLocation();
+    if (ipc) return { coords: ipc, source: 'ipc' };
+
+    const browser = await getBrowserGeolocation(true);
+    if (browser) return { coords: browser, source: 'browser' };
+
+    return null;
+  }
+
   const ipc = await tryIpcLocation();
   if (ipc) return { coords: ipc, source: 'ipc' };
 
-  const browser = await getBrowserGeolocation();
+  const browser = await getBrowserGeolocation(false);
   if (browser) return { coords: browser, source: 'browser' };
-
-  const { resolveLocationFromIP } = await import('./ipGeolocation');
-  const ip = await resolveLocationFromIP();
-  if (ip) {
-    console.log('DEVICE_LOCATION_IP_FALLBACK:', ip.lat, ip.lng);
-    return { coords: ip, source: 'ip' };
-  }
 
   return null;
 }

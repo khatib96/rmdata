@@ -45,6 +45,7 @@ Thumbs.db
 out/
 release/
 release2/
+electron/bin/
 
 # Temporary workspace files
 .tmp/
