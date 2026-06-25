@@ -5,8 +5,15 @@ import { sharedState } from '../shared-state';
 import { resolveDeviceLocationInMain } from '../device-location';
 import {
   getDbConnectionConfig, setDbConnectionConfig, normalizeApiBaseUrl, executeRemoteDbQueryOnce,
-  storeRemotePassword, clearRemotePassword, clearRemoteApiSession, remoteApiJson
+  storeRemotePassword, clearRemotePassword, clearRemoteApiSession, remoteApiJson, tryRemoteRestOrFallback,
 } from '../remote-api-utils';
+import {
+  archiveRecordViaRunner,
+  createRemoteSqlRunner,
+  deletePermanentViaRunner,
+  employeeStatusUpdateViaRunner,
+  restoreRecordViaRunner,
+} from './remote-mutation-fallback';
 import { getLocalSetting, getAllLocalSettings, setLocalSetting, setLocalSettings } from '../local-settings-store';
 import { validateInsertSql } from '../../src/utils/sqlInsertValidator';
 import { syncPermissionCatalog } from '../database/permission-catalog-sync';
@@ -349,9 +356,16 @@ export function registerSettingsHandlers() {
 
       const conf = getDbConnectionConfig();
       if (conf.mode === 'remote') {
-        return await remoteApiJson<{ success: boolean; data?: { entityType: string }; error?: string }>(
-          `/api/${config.remotePath}/${id}/permanent`,
-          { method: 'DELETE' },
+        return await tryRemoteRestOrFallback(
+          () => remoteApiJson<{ success: boolean; data?: { entityType: string }; error?: string }>(
+            `/api/${config.remotePath}/${id}/permanent`,
+            { method: 'DELETE' },
+          ),
+          async () => {
+            const run = createRemoteSqlRunner();
+            await deletePermanentViaRunner(run, payload.resource as ArchiveRestoreResource, id, config.table);
+            return { success: true, data: { entityType: config.entityType } };
+          },
         );
       }
 
@@ -390,9 +404,15 @@ export function registerSettingsHandlers() {
 
       const conf = getDbConnectionConfig();
       if (conf.mode === 'remote') {
-        return await remoteApiJson<{ success: boolean; data?: { entityType: string }; error?: string }>(
-          `/api/${config.remotePath}/${id}/archive`,
-          { method: 'POST' },
+        return await tryRemoteRestOrFallback(
+          () => remoteApiJson<{ success: boolean; data?: { entityType: string }; error?: string }>(
+            `/api/${config.remotePath}/${id}/archive`,
+            { method: 'POST' },
+          ),
+          async () => {
+            await archiveRecordViaRunner(createRemoteSqlRunner(), config, id);
+            return { success: true, data: { entityType: config.entityType } };
+          },
         );
       }
 
@@ -426,9 +446,15 @@ export function registerSettingsHandlers() {
 
       const conf = getDbConnectionConfig();
       if (conf.mode === 'remote') {
-        return await remoteApiJson<{ success: boolean; data?: { entityType: string }; error?: string }>(
-          `/api/${config.remotePath}/${id}/restore`,
-          { method: 'POST' },
+        return await tryRemoteRestOrFallback(
+          () => remoteApiJson<{ success: boolean; data?: { entityType: string }; error?: string }>(
+            `/api/${config.remotePath}/${id}/restore`,
+            { method: 'POST' },
+          ),
+          async () => {
+            await restoreRecordViaRunner(createRemoteSqlRunner(), config, id);
+            return { success: true, data: { entityType: config.entityType } };
+          },
         );
       }
 
@@ -629,12 +655,32 @@ export function registerSettingsHandlers() {
 
       const conf = getDbConnectionConfig();
       if (conf.mode === 'remote') {
-        return await remoteApiJson<{ success: boolean; error?: string }>(
-          `/api/employees/${employeeId}/status`,
-          {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
+        return await tryRemoteRestOrFallback(
+          () => remoteApiJson<{ success: boolean; error?: string }>(
+            `/api/employees/${employeeId}/status`,
+            {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body),
+            },
+          ),
+          async () => {
+            const actor = await resolveActorFromSessionToken(payload?.sessionToken);
+            await employeeStatusUpdateViaRunner(
+              createRemoteSqlRunner(),
+              {
+                employeeId,
+                employeeUpdate: u,
+                statusChanged: !!payload?.statusChanged,
+                previousStatus: payload?.previousStatus ?? null,
+                effectiveDate: payload?.effectiveDate ?? null,
+                dateCorrection: payload?.dateCorrection ?? null,
+                performedByUserId: payload?.performedByUserId ?? null,
+                performedByUsername: payload?.performedByUsername ?? null,
+              },
+              actor?.userId ?? null,
+            );
+            return { success: true };
           },
         );
       }

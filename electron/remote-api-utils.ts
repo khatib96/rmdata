@@ -124,6 +124,26 @@ export async function remoteApiJson<T>(pathname: string, init?: RequestInit): Pr
   return json as T;
 }
 
+/** True when production API has not deployed a Phase-D REST route yet (PHP gateway 404). */
+export function isRemoteRestEndpointMissing(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return (
+    /HTTP_404|^Not Found$/i.test(msg) ||
+    /INVALID_JSON_RESPONSE/i.test(msg) ||
+    /Cannot (DELETE|POST|PUT|GET) \/api\//i.test(msg)
+  );
+}
+
+export async function tryRemoteRestOrFallback<T>(rest: () => Promise<T>, fallback: () => Promise<T>): Promise<T> {
+  try {
+    return await rest();
+  } catch (err) {
+    if (!isRemoteRestEndpointMissing(err)) throw err;
+    console.warn('[remote-fallback] REST route missing on server — using /api/db/query');
+    return await fallback();
+  }
+}
+
 export async function executeRemoteDbQueryOnce(query: string, params?: unknown[]): Promise<DbQueryInternalResult> {
   const json = await remoteApiJson<{
     success: boolean;

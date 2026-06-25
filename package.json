@@ -1,7 +1,7 @@
 {
   "name": "rmdata-system",
   "productName": "RMDATA.System",
-  "version": "1.4.6",
+  "version": "1.4.7",
   "description": "Comprehensive ERP System for Al-Redaa Uniform",
   "main": "dist-electron/electron/main.js",
   "scripts": {
@@ -16,7 +16,7 @@
     "dev:api": "node server/dev-api-server.js",
     "test:sqlite-mysql": "node --test server/sqlite-to-mysql.test.js",
     "dev:react": "vite",
-    "dev:electron": "wait-on http://localhost:5173 -t 30000 -d 2000 && electron .",
+    "dev:electron": "node scripts/ensure-macos-location-dylib.cjs && wait-on http://localhost:5173 -t 30000 -d 2000 && electron .",
     "build": "npm run build:react && npm run build:electron",
     "dist:win": "npm run build && electron-builder --win nsis",
     "dist:mac": "npm run prebuild:mac && npm run build && electron-builder --mac dmg",
@@ -84,7 +84,7 @@
     "productName": "RMDATA",
     "npmRebuild": false,
     "releaseInfo": {
-      "releaseNotes": "# الإصدار 1.4.6 — CoreLocation أصلي على Mac\n\n## 🛠️ الإصلاحات\n\n- **تحديد الموقع عبر CoreLocation مباشرة** داخل عملية RMDATA (وليس IP ولا Chromium فقط).\n- **طلب الموقع الفعلي** من خدمة الموقع في macOS عند تشغيل التطبيق.\n- بدون أي اعتماد على عنوان IP.\n\n---\n\nفعّل الموقع لـ RMDATA من: **إعدادات النظام ← الخصوصية والأمان ← خدمات الموقع**."
+      "releaseNotes": "# الإصدار 1.4.7 — إصلاحات نسخة Mac\n\n## 🛠️ الإصلاحات\n\n- **حفظ حالة الموظف** (المهنة، الراتب الفعلي، تغيير الحالة) عند الاتصال بالسيرفر البعيد.\n- **الأرشفة والحذف والاستعادة** للأفرع والموظفين والسكن وغيرها عند غياب مسارات REST على السيرفر.\n- **تحديد الموقع (CoreLocation)** — إصلاح مسار المكتبة في وضع التطوير على Mac.\n\n---\n\nيتطلب اتصالاً بـ api.rmdata.tech عند استخدام وضع السيرفر البعيد."
     },
     "publish": {
       "provider": "generic",

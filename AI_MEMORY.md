@@ -746,6 +746,48 @@ RMDATA هو نظام إدارة داخلي لشركة الرداء الموحد.
 3. commit + push للكود على GitHub.
 4. إصلاح `users.view` mismatch؛ field-level permissions.
 
+### 2026-06-25 - إصلاحات نسخة Mac (1.4.7): حفظ الموظف + أرشفة/حذف + موقع في التطوير
+
+**السياق:** على Mac (وضع السيرفر البعيد `api.rmdata.tech`) ظهرت أخطاء متعددة: «حدث خطأ أثناء الحفظ» عند تحديث حالة الموظف/المهنة/الراتب الفعلي؛ فشل الأرشفة والحذف النهائي؛ مسار CoreLocation خاطئ في `npm run dev`.
+
+**السبب الجذري (من السجل):**
+- التطبيق يستدعي مسارات REST من Phase D (`PUT /api/employees/:id/status`, `POST /api/.../archive`, `DELETE /api/.../permanent`) غير منشورة على بوابة PHP الإنتاجية → **404**.
+- ليس خللاً في Mac كمنصة — نفس الكود على Windows بنفس إعداد السيرفر البعيد يتأثر بنفس المسارات.
+- في التطوير: `libRmdataLocation.dylib` يُبحث عنه في `dist-electron/bin/` بدل `electron/bin/`.
+
+**ما تم:**
+
+- `electron/ipc/remote-mutation-fallback.ts` (جديد): منطق SQL مشترك للأرشفة/الاستعادة/الحذف النهائي/تحديث حالة الموظف عبر `SqlRunner`.
+- `electron/remote-api-utils.ts`: `isRemoteRestEndpointMissing()` + `tryRemoteRestOrFallback()` — عند 404 يُنفَّذ fallback عبر `POST /api/db/query`.
+- `electron/ipc/settings-ipc.ts`: ربط `archive:*` و`employee:statusUpdate` بالـ fallback في وضع remote.
+- `electron/device-location.ts`: بحث متعدد المسارات عن `libRmdataLocation.dylib` (packaged + `electron/bin` + dev).
+- `scripts/ensure-macos-location-dylib.cjs` (جديد): يبني الـ dylib تلقائياً عند `npm run dev:electron` على Mac إن كان مفقوداً.
+
+**الملفات:**
+
+- `electron/ipc/remote-mutation-fallback.ts`
+- `electron/remote-api-utils.ts`
+- `electron/ipc/settings-ipc.ts`
+- `electron/device-location.ts`
+- `scripts/ensure-macos-location-dylib.cjs`
+- `package.json` → **1.4.7**
+
+**الأوامر:**
+
+- `npm run build:electron`
+- `npm run dist:mac` → `release/RMDATA-1.4.7-arm64.dmg`
+
+**قرارات:**
+
+- Fallback عبر `db/query` **مؤقت** حتى نشر مسارات Node REST على VPS.
+- لا تغيير على السيرفر في هذه الجلسة (حسب خطة عدم النشر قبل الاختبار المحلي).
+
+**الخطوة التالية:**
+
+1. تثبيت 1.4.7 واختبار حفظ الموظف + أرشفة/حذف على Mac.
+2. رفع `latest-mac.yml` + DMG إلى `updates/mac/`.
+3. نشر مسارات Phase D على VPS عند الجاهزية.
+
 ## 8. قالب تسجيل جلسة جديدة
 
 عند نهاية كل جلسة، أضف مدخلاً بهذا الشكل:
@@ -784,10 +826,10 @@ RMDATA هو نظام إدارة داخلي لشركة الرداء الموحد.
 
 ## 9. الحالة الحالية المختصرة
 
-الحالة: مشروع عامل؛ إصدار التطوير **1.4.6**؛ `typecheck` أخضر؛ Phase C مغلقة؛ الصلاحيات v4 شغالة (170 مفتاح، واجهة + سيرفر).
-المرجع الحالي: `docs/RMDATA_MASTER_PLAN_2026.md`.
-المرحلة القادمة: اختبار 1.4.6 على Mac → رفع `updates/mac/` على VPS → Phase D (Node API + تقليل `dbQuery`).
-إصلاح الموقع على Mac: CoreLocation أصلي عبر `libRmdataLocation.dylib` (1.4.6) — بانتظار تأكيد المالك بعد تثبيت DMG.
-التحديث الهوائي: `updates/win/` موجود؛ `updates/mac/` يحتاج إنشاء + رفع `latest-mac.yml` + DMG.
-أهم خطر متبقٍ: `db/query` Legacy؛ GET API لا يفلتر حقول حساسة؛ `users.view` mismatch؛ بناء Mac arm64 فقط.
-أهم قرار: Node فقط للميزات الجديدة، PHP Legacy، لا نشر VPS قبل اختبار محلي، لا V2 قبل migrations، **لا موقع عبر IP**.
+الحالة: مشروع عامل؛ إصدار التطوير **1.4.7**؛ Phase C مغلقة؛ الصلاحيات v4 شغالة.
+المرجع: `docs/RMDATA_MASTER_PLAN_2026.md`.
+إصلاح Mac الأخير (1.4.7): fallback `db/query` لحفظ الموظف وأرشفة/حذف على السيرفر البعيد + مسار CoreLocation في dev.
+الموقع (1.4.6+): CoreLocation أصلي عبر `libRmdataLocation.dylib` — بدون IP.
+التحديث الهوائي: `updates/mac/` يحتاج رفع `RMDATA-1.4.7-arm64.dmg` + `latest-mac.yml`.
+أهم خطر متبقٍ: مسارات REST Phase D غير منشورة على VPS (الـ fallback يعمل مؤقتاً)؛ `db/query` Legacy؛ `users.view` mismatch.
+أهم قرار: لا نشر VPS قبل اختبار 1.4.7 محلياً؛ Node للميزات الجديدة؛ لا موقع عبر IP.

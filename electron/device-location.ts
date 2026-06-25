@@ -4,6 +4,7 @@
  * macOS: native CoreLocation dylib in main process, then Chromium geolocation fallback.
  */
 import { execFile } from 'child_process';
+import * as fs from 'fs';
 import * as path from 'path';
 import { Worker } from 'worker_threads';
 import { app } from 'electron';
@@ -69,9 +70,19 @@ let cachedNativeDylibPath: string | null = null;
 
 function resolveNativeDylibPath(): string {
   if (cachedNativeDylibPath) return cachedNativeDylibPath;
-  cachedNativeDylibPath = app.isPackaged
-    ? path.join(process.resourcesPath, 'libRmdataLocation.dylib')
-    : path.join(__dirname, '../bin/libRmdataLocation.dylib');
+  const candidates = [
+    app.isPackaged ? path.join(process.resourcesPath, 'libRmdataLocation.dylib') : null,
+    path.join(__dirname, '../../electron/bin/libRmdataLocation.dylib'),
+    path.join(__dirname, '../bin/libRmdataLocation.dylib'),
+    path.join(app.getAppPath(), 'electron/bin/libRmdataLocation.dylib'),
+  ].filter((p): p is string => !!p);
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      cachedNativeDylibPath = candidate;
+      return candidate;
+    }
+  }
+  cachedNativeDylibPath = candidates[0] || path.join(app.getAppPath(), 'electron/bin/libRmdataLocation.dylib');
   return cachedNativeDylibPath;
 }
 
